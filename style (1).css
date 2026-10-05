@@ -1,0 +1,50 @@
+:root {
+  --lcd: #d4e0a8;
+  --lcd-dark: #a9bd74;
+  --ink: #243019;
+  --ball: #c2412d;
+  --paper: #eef3d6;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--lcd);
+  color: var(--ink);
+  font-family: "Pixelify Sans", ui-monospace, Menlo, monospace;
+  font-size: 18px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#app { flex: 1; width: 100%; max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+footer { text-align: center; font-size: 13px; padding: 12px; opacity: .7; }
+h1 { font-size: 44px; margin: 0 0 4px; line-height: 1; }
+h2 { font-size: 26px; margin: 0 0 8px; }
+p { margin: 0 0 16px; max-width: 60ch; }
+.panel { background: var(--paper); border: 3px solid var(--ink); padding: 16px; box-shadow: 4px 4px 0 var(--ink); }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+button {
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 3px solid var(--ink); padding: 8px 14px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+button:hover { background: var(--lcd-dark); }
+button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+button:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
+button.primary { background: var(--ball); color: var(--paper); }
+.starter { flex: 1 1 160px; text-align: center; padding: 12px; }
+.starter img, .mon img { width: 96px; height: 96px; image-rendering: pixelated; }
+.path { list-style: none; margin: 16px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.node { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+.node .icon { font-size: 26px; width: 36px; text-align: center; }
+.node.done { opacity: .45; }
+.node.locked { opacity: .35; cursor: not-allowed; }
+.party { display: flex; gap: 8px; margin-bottom: 16px; }
+.mon { text-align: center; font-size: 14px; }
+.mon img { width: 64px; height: 64px; }
+.badges { margin-left: auto; }
+.error { color: var(--ball); font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  button { transition: background .1s; }
+}
