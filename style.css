@@ -58,3 +58,9 @@ button.primary { background: var(--ball); color: var(--paper); }
 .battle .side:nth-of-type(2) { flex-direction: row-reverse; text-align: right; }
 .line { min-height: 3em; margin: 12px 0; }
 small { opacity: .75; }
+
+/* Party and stats */
+.party { flex-wrap: wrap; }
+.mon.fainted { opacity: .4; }
+.stats { margin-bottom: 8px; }
+.battle .row { margin-top: 8px; }
