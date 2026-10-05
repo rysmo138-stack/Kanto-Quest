@@ -69,7 +69,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Runs the whole fight and returns a log the UI can play back.
 // weaken = true stops once the wild Pokémon is low (never knocks it out), so it can be caught.
-function simulate(player, enemy, weaken = false) {
+function simulate(player, enemy, weaken = false, boost = 1) {
   const mons = { p: player, e: enemy };
   const hp = { p: player.curHp, e: enemy.curHp };
   const order = (player.spe > enemy.spe || (player.spe === enemy.spe && Math.random() < 0.5))
@@ -81,6 +81,7 @@ function simulate(player, enemy, weaken = false) {
       const o = s === "p" ? "e" : "p";
       if (hp.p <= 0 || hp.e <= 0) break;
       const r = attackRoll(mons[s], mons[o]);
+      if (s === "p" && r.dmg) r.dmg = Math.max(1, Math.round(r.dmg * boost));
       hp[o] = Math.max(weaken && o === "e" ? 1 : 0, hp[o] - r.dmg);
       let text = `${cap(mons[s].name)} used a ${cap(r.type)} attack!`;
       if (r.eff === 0) text += " It had no effect.";
