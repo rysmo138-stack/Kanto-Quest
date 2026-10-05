@@ -1,16 +1,26 @@
-// Game flow. Stage 1: pick a starter, then walk Route 1 node by node.
+// Game flow: pick a starter, then walk routes. Wild encounters are auto-battles.
 const app = document.getElementById("app");
-const state = { party: [], routeIndex: 0, nodeIndex: 0, items: { potion: 0 }, message: "" };
+const freshState = () => ({ party: [], routeIndex: 0, nodeIndex: 0, message: "" });
+let state = freshState();
 
-const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const typesText = m => m.types.map(cap).join(" / ");
+
+function hpBar(cur, max) {
+  const pct = Math.max(0, Math.round((cur / max) * 100));
+  const color = pct > 50 ? "#4a7c2a" : pct > 20 ? "#c9a227" : "#c2412d";
+  return `<div class="bar" role="img" aria-label="HP ${cur} of ${max}"><div style="width:${pct}%;background:${color}"></div></div>`;
+}
 
 function monCard(m) {
-  return `<div class="mon"><img src="${m.sprite}" alt="${cap(m.name)}"><div>${cap(m.name)}</div></div>`;
+  return `<div class="mon"><img src="${m.sprite}" alt="${cap(m.name)}">
+    <div>${cap(m.name)} Lv${m.level}</div>${hpBar(m.curHp, m.maxHp)}<div>${m.curHp}/${m.maxHp}</div></div>`;
 }
 
 async function showStarters() {
-  app.innerHTML = `<h1>Kanto Quest</h1><p>Your journey from Pallet Town to the Pokémon League starts here. Choose your first partner.</p><p>Loading starters...</p>`;
+  state = freshState();
+  app.innerHTML = `<h1>Kanto Quest</h1><p>Loading starters...</p>`;
   try {
     const mons = await Promise.all(STARTERS.map(getPokemon));
     app.innerHTML = `
@@ -21,25 +31,25 @@ async function showStarters() {
           <button class="starter" data-name="${m.name}">
             <img src="${m.sprite}" alt="">
             <div><strong>${cap(m.name)}</strong></div>
-            <div>${m.types.map(cap).join(" / ")}</div>
+            <div>${typesText(m)}</div>
           </button>`).join("")}
       </div>`;
     app.querySelectorAll(".starter").forEach(btn =>
       btn.addEventListener("click", () => {
-        state.party = [mons.find(m => m.name === btn.dataset.name)];
+        state.party = [makeBattler(mons.find(m => m.name === btn.dataset.name), 5)];
         showRoute();
       }));
   } catch (err) {
     app.innerHTML = `<h1>Kanto Quest</h1><p class="error">${err.message}. Check your connection and reload.</p>
-      <button onclick="showStarters()">Try again</button>`;
+      <button id="retry">Try again</button>`;
+    document.getElementById("retry").addEventListener("click", showStarters);
   }
 }
 
 function showRoute() {
   const route = ROUTES[state.routeIndex];
   const nodes = route.nodes.map((n, i) => {
-    const done = i < state.nodeIndex;
-    const current = i === state.nodeIndex;
+    const done = i < state.nodeIndex, current = i === state.nodeIndex;
     const cls = done ? "done" : current ? "" : "locked";
     return `<li><button class="node ${cls}" data-i="${i}" ${current ? "" : "disabled"}>
       <span class="icon">${NODE_ICONS[n.type]}</span><span>${n.label}</span></button></li>`;
@@ -63,23 +73,78 @@ async function playNode(i) {
 
   if (node.type === "wild") {
     try {
-      const wild = await getPokemon(pick(route.wild));
-      state.message = `<div class="row"><div class="mon"><img src="${wild.sprite}" alt=""></div>
-        <div><p>A wild <strong>${cap(wild.name)}</strong> appeared! (${wild.types.map(cap).join(" / ")})</p>
-        <p>Battles arrive in the next stage. For now you scare it off.</p></div></div>`;
+      const base = await getPokemon(pick(route.wild));
+      const enemy = makeBattler(base, randInt(3, 5));
+      return showBattle(state.party[0], enemy, i);
     } catch (err) {
       state.message = `<span class="error">${err.message}</span>`;
       return showRoute();
     }
-  } else if (node.type === "item") {
-    state.items.potion++;
-    state.message = `<p>You found a Potion! You now have ${state.items.potion}.</p>`;
+  }
+  if (node.type === "item") {
+    const lead = state.party[0];
+    const healed = Math.min(20, lead.maxHp - lead.curHp);
+    lead.curHp += healed;
+    state.message = `<p>You found a Potion and used it. ${cap(lead.name)} restored ${healed} HP.</p>`;
   } else if (node.type === "end") {
     state.message = `<p>You made it to ${node.label}! Brock and Pewter City come next.</p>`;
   }
-
   state.nodeIndex = i + 1;
   showRoute();
+}
+
+function showBattle(player, enemy, nodeI) {
+  const result = simulate(player, enemy);
+  let step = -1, timer = null;
+
+  app.innerHTML = `
+    <h2>Wild ${cap(enemy.name)} appeared!</h2>
+    <div class="panel battle">
+      <div class="side"><img src="${enemy.sprite}" alt="${cap(enemy.name)}">
+        <div>${cap(enemy.name)} Lv${enemy.level} <small>${typesText(enemy)}</small></div><div id="bar-e"></div></div>
+      <div class="side"><img src="${player.sprite}" alt="${cap(player.name)}">
+        <div>${cap(player.name)} Lv${player.level} <small>${typesText(player)}</small></div><div id="bar-p"></div></div>
+      <p id="line" class="line">What will happen?</p>
+      <div id="actions"><button id="skip">Skip</button></div>
+    </div>`;
+
+  const barE = document.getElementById("bar-e"), barP = document.getElementById("bar-p");
+  const line = document.getElementById("line"), actions = document.getElementById("actions");
+  const draw = hp => {
+    barE.innerHTML = hpBar(hp.e, enemy.maxHp) + `<small>${hp.e}/${enemy.maxHp}</small>`;
+    barP.innerHTML = hpBar(hp.p, player.maxHp) + `<small>${hp.p}/${player.maxHp}</small>`;
+  };
+  draw({ p: player.curHp, e: enemy.curHp });
+
+  const finish = () => {
+    clearTimeout(timer);
+    const last = result.log[result.log.length - 1];
+    draw(last ? last.hp : { p: player.curHp, e: enemy.curHp });
+    player.curHp = result.hp.p;
+    const won = result.winner === "p";
+    let msg = won ? `You defeated the wild ${cap(enemy.name)}!` : `${cap(player.name)} fainted...`;
+    if (won) {
+      state.nodeIndex = nodeI + 1;
+      msg += " " + gainXp(player, enemy.level * 6).join(" ");
+    }
+    line.textContent = msg;
+    actions.innerHTML = won
+      ? `<button class="primary" id="go">Continue</button>`
+      : `<button class="primary" id="go">Start over</button>`;
+    document.getElementById("go").addEventListener("click", () => {
+      if (won) { state.message = `<p>${msg}</p>`; showRoute(); } else showStarters();
+    });
+  };
+
+  const next = () => {
+    step++;
+    if (step >= result.log.length) return finish();
+    line.textContent = result.log[step].text;
+    draw(result.log[step].hp);
+    timer = setTimeout(next, 900);
+  };
+  document.getElementById("skip").addEventListener("click", finish);
+  timer = setTimeout(next, 600);
 }
 
 showStarters();
