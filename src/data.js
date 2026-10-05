@@ -39,8 +39,11 @@ const ROUTES = [
     nodes: [
       { type: "wild", label: "Wild encounter" },
       { type: "wild", label: "Wild encounter" },
-      { type: "item", label: "Found a Potion" },
+      { type: "item", item: "potion", label: "Found a Potion" },
       { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest by the road" },
       { type: "end", label: "Viridian City" }
     ]
   }
