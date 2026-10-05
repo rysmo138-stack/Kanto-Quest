@@ -68,19 +68,20 @@ function attackRoll(att, def) {
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Runs the whole fight and returns a log the UI can play back.
-function simulate(player, enemy) {
+// weaken = true stops once the wild Pokémon is low (never knocks it out), so it can be caught.
+function simulate(player, enemy, weaken = false) {
   const mons = { p: player, e: enemy };
   const hp = { p: player.curHp, e: enemy.curHp };
   const order = (player.spe > enemy.spe || (player.spe === enemy.spe && Math.random() < 0.5))
     ? ["p", "e"] : ["e", "p"];
   const log = [];
 
-  for (let turn = 0; turn < 60 && hp.p > 0 && hp.e > 0; turn++) {
+  outer: for (let turn = 0; turn < 60 && hp.p > 0 && hp.e > 0; turn++) {
     for (const s of order) {
       const o = s === "p" ? "e" : "p";
       if (hp.p <= 0 || hp.e <= 0) break;
       const r = attackRoll(mons[s], mons[o]);
-      hp[o] = Math.max(0, hp[o] - r.dmg);
+      hp[o] = Math.max(weaken && o === "e" ? 1 : 0, hp[o] - r.dmg);
       let text = `${cap(mons[s].name)} used a ${cap(r.type)} attack!`;
       if (r.eff === 0) text += " It had no effect.";
       else if (r.eff > 1) text += " It's super effective!";
@@ -88,6 +89,7 @@ function simulate(player, enemy) {
       if (r.crit && r.dmg) text += " A critical hit!";
       log.push({ text, hp: { ...hp } });
       if (hp[o] <= 0) log.push({ text: `${cap(mons[o].name)} fainted!`, hp: { ...hp } });
+      if (weaken && hp.e <= enemy.maxHp * 0.3) break outer;
     }
   }
   return { log, winner: hp.p > 0 ? "p" : "e", hp };
@@ -106,4 +108,9 @@ function gainXp(b, amount) {
     msgs.push(`${cap(b.name)} grew to level ${b.level}!`);
   }
   return msgs;
+}
+
+// Catch odds: better when the target is hurt. Full HP is about 20%, almost no HP about 60%.
+function catchChance(enemy) {
+  return 0.6 * (3 * enemy.maxHp - 2 * enemy.curHp) / (3 * enemy.maxHp);
 }
