@@ -95,3 +95,42 @@ button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .dexgrid .mon { width: 104px; padding: 6px; border: 2px solid var(--ink); background: var(--paper); }
 .dexgrid .mon small { display: block; }
 .seenonly img { filter: brightness(0.3); }
+
+/* Type badges */
+.type { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 9px; color: #fff; text-transform: uppercase; letter-spacing: .5px; line-height: 1.6; margin-right: 2px; }
+.t-normal { background: #a8a77a; } .t-fire { background: #ee8130; } .t-water { background: #6390f0; }
+.t-grass { background: #7ac74c; } .t-flying { background: #a98ff3; } .t-fighting { background: #c22e28; }
+.t-poison { background: #a33ea1; } .t-psychic { background: #f95587; } .t-bug { background: #a6b91a; }
+.t-ghost { background: #735797; } .t-dragon { background: #6f35fc; } .t-dark { background: #705746; }
+.t-fairy { background: #d685ad; }
+.t-electric { background: #f7d02c; color: var(--ink); } .t-ice { background: #96d9d6; color: var(--ink); }
+.t-ground { background: #e2bf65; color: var(--ink); } .t-rock { background: #b6a136; } .t-steel { background: #b7b7ce; color: var(--ink); }
+
+/* Battle scene */
+.scene { position: relative; height: 300px; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  margin-bottom: 16px; overflow: hidden; background: linear-gradient(#bfe3f2 0 52%, #8fc46a 52% 100%); }
+.scene.forest { background: linear-gradient(#6f9d6a 0 45%, #3c6b3a 45% 100%); }
+.scene.cave { background: linear-gradient(#4a4a55 0 50%, #2f2f38 50% 100%); }
+.scene.tower { background: linear-gradient(#4b3a6b 0 50%, #2b2140 50% 100%); }
+.scene.ship { background: linear-gradient(#9fd0e8 0 45%, #4f86b8 45% 58%, #a07a4f 58% 100%); }
+.scene.city { background: linear-gradient(#cfe6f5 0 50%, #b9b9b0 50% 100%); }
+.scene.gym { background: linear-gradient(#d9d2c3 0 50%, #a99f8d 50% 100%); }
+.plat { position: absolute; border-radius: 50%; background: rgba(0, 0, 0, .2); }
+.foe-plat { width: 150px; height: 26px; right: 3%; top: 134px; }
+.you-plat { width: 180px; height: 30px; left: 2%; bottom: 6px; }
+.spr { position: absolute; object-fit: contain; object-position: bottom; image-rendering: pixelated; }
+.spr.foe { width: 120px; height: 120px; right: 7%; top: 28px; }
+.spr.you { width: 150px; height: 150px; left: 7%; bottom: 20px; }
+.spr.noback { scale: -1 1; }
+.infobox { position: absolute; background: var(--paper); border: 3px solid var(--ink); padding: 6px 8px; font-size: 15px; line-height: 1.3; }
+.infobox small { display: block; }
+.foe-box { top: 10px; left: 10px; width: min(46%, 230px); }
+.you-box { bottom: 10px; right: 10px; width: min(50%, 250px); }
+.xpbar { height: 6px; border: 2px solid var(--ink); background: var(--lcd); margin-top: 3px; }
+.xpbar > div { height: 100%; background: #4a7ec2; }
+@media (max-width: 420px) {
+  .scene { height: 280px; }
+  .spr.foe { width: 100px; height: 100px; }
+  .spr.you { width: 120px; height: 120px; }
+  .infobox { font-size: 13px; padding: 4px 6px; }
+}
