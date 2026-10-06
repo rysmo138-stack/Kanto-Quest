@@ -70,3 +70,5 @@ small { opacity: .75; }
 .partyrow .mon { min-width: 110px; }
 .partyrow button { padding: 4px 10px; }
 button:disabled { opacity: .4; cursor: not-allowed; }
+
+button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
