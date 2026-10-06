@@ -1,8 +1,23 @@
 // Data layer: loads Pokémon from PokéAPI and caches them in localStorage.
 const API = "https://pokeapi.co/api/v2";
 
+// Level-up moves for one Pokémon, from the oldest game PokéAPI has data for.
+function buildLearnset(d) {
+  const prefer = ["red-blue", "yellow", "gold-silver", "crystal"];
+  const byGroup = {};
+  for (const mv of d.moves) {
+    for (const v of mv.version_group_details) {
+      if (v.move_learn_method.name !== "level-up") continue;
+      (byGroup[v.version_group.name] = byGroup[v.version_group.name] || [])
+        .push({ name: mv.move.name, level: v.level_learned_at });
+    }
+  }
+  const g = prefer.find(x => byGroup[x]) || Object.keys(byGroup).pop();
+  return (byGroup[g] || []).sort((a, b) => a.level - b.level);
+}
+
 async function getPokemon(name) {
-  const key = "kq:mon:" + name;
+  const key = "kq:mon2:" + name;
   try {
     const cached = localStorage.getItem(key);
     if (cached) return JSON.parse(cached);
@@ -21,10 +36,40 @@ async function getPokemon(name) {
     hp: stat("hp"), attack: stat("attack"), defense: stat("defense"),
     spAttack: stat("special-attack"), spDefense: stat("special-defense"),
     speed: stat("speed"),
-    sprite: d.sprites.front_default
+    sprite: d.sprites.front_default,
+    learnset: buildLearnset(d)
   };
   try { localStorage.setItem(key, JSON.stringify(mon)); } catch (e) {}
   return mon;
+}
+
+// Moves that need special rules we don't have yet are left out.
+const MOVE_BLACKLIST = ["self-destruct", "explosion", "hyper-beam", "dream-eater", "fly", "dig",
+  "solar-beam", "razor-wind", "skull-bash", "sky-attack", "focus-punch", "giga-impact"];
+
+// Returns null on any failure so one bad move never breaks a battle.
+async function getMove(name) {
+  const key = "kq:move:" + name;
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  try {
+    const res = await fetch(`${API}/move/${name}`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    const mv = {
+      name: d.name,
+      label: d.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+      type: d.type.name,
+      power: d.power,
+      accuracy: d.accuracy == null ? 100 : d.accuracy,
+      pp: d.pp || 20,
+      cls: d.damage_class.name
+    };
+    try { localStorage.setItem(key, JSON.stringify(mv)); } catch (e) {}
+    return mv;
+  } catch (e) { return null; }
 }
 
 const STARTERS = ["bulbasaur", "charmander", "squirtle"];
