@@ -1,6 +1,6 @@
 // Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
 const app = document.getElementById("app");
-const freshState = () => ({ party: [], box: [], badges: [], balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+const freshState = () => ({ party: [], box: [], badges: [], caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -98,7 +98,7 @@ function showRoute() {
   app.innerHTML = `
     <h2>${route.name}</h2>
     <p>${route.blurb}</p>
-    <p class="stats">Poké Balls: ${state.balls} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
+    <p class="stats">Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
     <div class="party">${state.party.map(monCard).join("")}</div>
     <ul class="path">${nodes}</ul>
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
@@ -110,7 +110,7 @@ function showRoute() {
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
   const travel = document.getElementById("travel");
   if (travel) travel.addEventListener("click", () => {
-    state.routeIndex++; state.nodeIndex = 0; state.message = ""; showRoute();
+    state.routeIndex++; state.nodeIndex = 0; state.caught = false; state.message = ""; showRoute();
   });
 }
 
@@ -202,11 +202,11 @@ function showEncounter(enemy, nodeI, note = "") {
       <div class="side"><img src="${me.sprite}" alt="${cap(me.name)}">
         <div>${cap(me.name)} Lv${me.level} <small>${typesText(me)}</small></div>
         ${hpBar(me.curHp, me.maxHp)}<small>${me.curHp}/${me.maxHp}</small></div>
-      <p class="line">${note || "What will you do?"} Catch chance: about ${chance}%.</p>
+      <p class="line">${note || "What will you do?"} ${state.caught ? "You already caught a Pokémon on this route." : `Catch chance: about ${chance}%.`}</p>
       <div class="row">
         <button class="primary" id="fight">Fight</button>
         <button id="weaken" ${weak ? "disabled" : ""}>Weaken</button>
-        <button id="ball" ${state.balls ? "" : "disabled"}>Throw Poké Ball (${state.balls})</button>
+        <button id="ball" ${state.balls && !state.caught ? "" : "disabled"}>${state.caught ? "Already caught one here" : `Throw Poké Ball (${state.balls})`}</button>
         <button id="run">Run</button>
       </div>
     </div>`;
@@ -235,6 +235,7 @@ function throwBall(enemy, nodeI) {
   state.balls--;
   if (Math.random() < catchChance(enemy)) {
     enemy.xp = 0;
+    state.caught = true;
     let where = "added to your party";
     if (state.party.length < 6) state.party.push(enemy);
     else { state.box.push(enemy); where = "sent to your box (party is full)"; }
