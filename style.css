@@ -64,3 +64,9 @@ small { opacity: .75; }
 .mon.fainted { opacity: .4; }
 .stats { margin-bottom: 8px; }
 .battle .row { margin-top: 8px; }
+
+/* Party management */
+.partyrow { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.partyrow .mon { min-width: 110px; }
+.partyrow button { padding: 4px 10px; }
+button:disabled { opacity: .4; cursor: not-allowed; }
