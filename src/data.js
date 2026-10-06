@@ -42,7 +42,9 @@ const EVOLUTIONS = {
   spearow: [20, "fearow"], ekans: [22, "arbok"], sandshrew: [22, "sandslash"],
   bellsprout: [21, "weepinbell"], abra: [16, "kadabra"], mankey: [28, "primeape"],
   meowth: [28, "persian"], diglett: [26, "dugtrio"], machop: [28, "machoke"],
-  venonat: [31, "venomoth"]
+  venonat: [31, "venomoth"],
+  gastly: [25, "haunter"], cubone: [28, "marowak"], slowpoke: [37, "slowbro"],
+  koffing: [35, "weezing"], magnemite: [30, "magneton"], voltorb: [30, "electrode"]
 };
 
 const BADGE_PERK = "Your Pokémon deal 10% more damage (stacks with each badge).";
@@ -255,6 +257,90 @@ const ROUTES = [
       { type: "gym", leader: "Lt. Surge", badge: "Thunder Badge", label: "Gym: Lt. Surge",
         team: [["voltorb", 14], ["pikachu", 15], ["raichu", 17]] },
       { type: "end", label: "Route 9 is next" }
+    ]
+  },
+  {
+    id: "route-9-10", name: "Routes 9 and 10",
+    blurb: "Rocky trails east of Cerulean City, crackling with electricity near the Power Plant.",
+    wild: ["spearow", "ekans", "rattata", "sandshrew", "voltorb", "magnemite"],
+    levels: [15, 18],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Alan", label: "Trainer: Hiker Alan",
+        team: [["geodude", 17], ["geodude", 17]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Jr. Trainer Dave", label: "Trainer: Jr. Trainer Dave",
+        team: [["spearow", 17], ["rattata", 17], ["sandshrew", 17]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Pokémon Center" },
+      { type: "end", label: "Rock Tunnel" }
+    ]
+  },
+  {
+    id: "rock-tunnel", name: "Rock Tunnel",
+    blurb: "A pitch-black cave. Wild Pokémon jump out of the dark with every step.",
+    wild: ["zubat", "zubat", "geodude", "machop", "onix"],
+    levels: [15, 18],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Lenny", label: "Trainer: Hiker Lenny",
+        team: [["geodude", 17], ["machop", 17]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "trainer", name: "Pokémaniac Cooper", label: "Trainer: Pokémaniac Cooper",
+        team: [["slowpoke", 16], ["cubone", 16]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest in the tunnel" },
+      { type: "trainer", name: "Hiker Dudley", label: "Trainer: Hiker Dudley",
+        team: [["machop", 18], ["onix", 17]] },
+      { type: "end", label: "Lavender Town" }
+    ]
+  },
+  {
+    id: "lavender-town", name: "Lavender Town",
+    blurb: "A quiet town with a haunted Pokémon Tower. Normal-type moves can't hurt Ghost Pokémon.",
+    wild: ["gastly", "gastly", "zubat", "cubone"],
+    levels: [16, 19],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Channeler Hope", label: "Trainer: Channeler Hope",
+        team: [["gastly", 18], ["gastly", 18]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Channeler Karina", label: "Trainer: Channeler Karina",
+        team: [["gastly", 19]] },
+      { type: "end", label: "Route 8" }
+    ]
+  },
+  {
+    id: "route-8", name: "Routes 8 and 7",
+    blurb: "The road west from Lavender Town to Celadon City, with fire-type Pokémon in the grass.",
+    wild: ["growlithe", "vulpix", "meowth", "ekans", "sandshrew", "pidgey"],
+    levels: [16, 19],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Lass Megan", label: "Trainer: Lass Megan",
+        team: [["meowth", 18], ["pidgeotto", 18]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Biker Jaxon", label: "Trainer: Biker Jaxon",
+        team: [["voltorb", 18], ["koffing", 18]] },
+      { type: "heal", label: "Rest by the road" },
+      { type: "end", label: "Celadon City" }
+    ]
+  },
+  {
+    id: "celadon-city", name: "Celadon City",
+    blurb: "A big city with a department store. Its gym leader uses Grass Pokémon, which are weak to Fire, Flying, and Poison.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "gym", leader: "Erika", badge: "Rainbow Badge", label: "Gym: Erika",
+        team: [["tangela", 16], ["weepinbell", 17], ["vileplume", 19]] },
+      { type: "end", label: "Route 16 is next" }
     ]
   }
 ];
