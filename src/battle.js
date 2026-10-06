@@ -65,6 +65,12 @@ function attackRoll(att, def) {
   return { dmg, type, eff, crit };
 }
 
+const MOVES = {
+  normal: "Tackle", fire: "Ember", water: "Water Gun", electric: "Thunder Shock", grass: "Vine Whip",
+  ice: "Ice Beam", fighting: "Karate Chop", poison: "Poison Sting", ground: "Dig", flying: "Wing Attack",
+  psychic: "Confusion", bug: "Bug Bite", rock: "Rock Throw", ghost: "Lick", dragon: "Dragon Rage",
+  dark: "Bite", steel: "Metal Claw", fairy: "Fairy Wind"
+};
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Runs the whole fight and returns a log the UI can play back.
@@ -83,7 +89,7 @@ function simulate(player, enemy, weaken = false, boost = 1) {
       const r = attackRoll(mons[s], mons[o]);
       if (s === "p" && r.dmg) r.dmg = Math.max(1, Math.round(r.dmg * boost));
       hp[o] = Math.max(weaken && o === "e" ? 1 : 0, hp[o] - r.dmg);
-      let text = `${cap(mons[s].name)} used a ${cap(r.type)} attack!`;
+      let text = `${cap(mons[s].name)} used ${MOVES[r.type] || cap(r.type)}!`;
       if (r.eff === 0) text += " It had no effect.";
       else if (r.eff > 1) text += " It's super effective!";
       else if (r.eff < 1) text += " It's not very effective.";
