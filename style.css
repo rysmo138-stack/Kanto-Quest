@@ -77,3 +77,11 @@ button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
 .movebtn { text-align: left; min-width: 140px; }
 .movebtn small { display: block; }
+
+/* Status tags */
+.st { display: inline-block; font-size: 12px; padding: 0 5px; border: 2px solid var(--ink); color: var(--paper); line-height: 1.3; }
+.st-poison { background: #7b3f9e; }
+.st-burn { background: #c2412d; }
+.st-paralysis { background: #b8901a; color: var(--ink); }
+.st-sleep { background: #5a6b7a; }
+.st-freeze { background: #3a8fb7; }
