@@ -192,8 +192,9 @@ function newBattleCtx(player, enemy, weaken = false, boost = 1) {
 function playRound(ctx, playerMove = null, itemFn = null) {
   const start = ctx.log.length;
   const { mons, hp } = ctx;
-  const say = text => ctx.log.push({ text, hp: { ...hp }, st: { p: mons.p.status, e: mons.e.status } });
-  const faintCheck = k => { if (hp[k] <= 0) { mons[k].status = null; say(`${cap(mons[k].name)} fainted!`); } };
+  // fx tells the screen who attacked (a), who got hit (h), or who fainted (f), for animations.
+  const say = (text, fx = null) => ctx.log.push({ text, hp: { ...hp }, st: { p: mons.p.status, e: mons.e.status }, fx });
+  const faintCheck = k => { if (hp[k] <= 0) { mons[k].status = null; say(`${cap(mons[k].name)} fainted!`, { f: k }); } };
   const sp = effSpeed(mons.p), se = effSpeed(mons.e);
   const order = (sp > se || (sp === se && Math.random() < 0.5)) ? ["p", "e"] : ["e", "p"];
 
@@ -227,7 +228,7 @@ function playRound(ctx, playerMove = null, itemFn = null) {
     else if (r.eff > 1) text += " It's super effective!";
     else if (r.eff < 1) text += " It's not very effective.";
     if (r.crit && r.dmg) text += " A critical hit!";
-    say(text);
+    say(text, { a: s, h: !r.miss && !r.statusMove && r.dmg > 0 ? o : null });
     faintCheck(o);
 
     // Moves can leave a status behind.
