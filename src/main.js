@@ -1,14 +1,14 @@
 // Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
 const app = document.getElementById("app");
-const freshState = () => ({ party: [], box: [], badges: [], caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
 // ---------- Saving ----------
 const SAVE_KEY = "kq:save";
 function saveGame() {
   try {
-    const { party, box, badges, caught, balls, routeIndex, nodeIndex } = state;
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, caught, balls, routeIndex, nodeIndex }));
+    const { party, box, badges, difficulty, caught, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, caught, balls, routeIndex, nodeIndex }));
   } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
 }
 function loadSave() {
@@ -20,6 +20,9 @@ function loadSave() {
 }
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 
+// Hard and Expert raise the level of every wild Pokémon, trainer, and gym leader.
+const DIFFICULTIES = [["Normal", 0], ["Hard", 4], ["Expert", 8]];
+const levelBonus = () => DIFFICULTIES[state.difficulty || 0][1];
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const typesText = m => m.types.map(cap).join(" / ");
@@ -35,7 +38,7 @@ function monCard(m) {
   return `<div class="mon ${m.curHp <= 0 ? "fainted" : ""}"><img src="${m.sprite}" alt="${cap(m.name)}">
     <div>${cap(m.name)} Lv${m.level}</div>${hpBar(m.curHp, m.maxHp)}<div>${m.curHp}/${m.maxHp}</div></div>`;
 }
-const makeFoes = team => Promise.all(team.map(([n, l]) => getPokemon(n).then(b => makeBattler(b, l))));
+const makeFoes = team => Promise.all(team.map(([n, l]) => getPokemon(n).then(b => makeBattler(b, l + levelBonus()))));
 
 // ---------- XP and evolution ----------
 async function evolveIfReady(m) {
@@ -83,7 +86,7 @@ function showTitle() {
     <h1>Kanto Quest</h1>
     <div class="panel">
       <p>Saved run: ${route.name}, ${s.badges.length} badge${s.badges.length === 1 ? "" : "s"},
-      ${s.party.length} in your party, led by ${cap(first.name)} Lv${first.level}.</p>
+      ${DIFFICULTIES[s.difficulty || 0][0]} difficulty, ${s.party.length} in your party, led by ${cap(first.name)} Lv${first.level}.</p>
       <div class="row"><button class="primary" id="cont">Continue</button>
       <button id="new">New game</button></div>
     </div>`;
@@ -106,7 +109,11 @@ async function showStarters() {
     const mons = await Promise.all(STARTERS.map(getPokemon));
     app.innerHTML = `
       <h1>Kanto Quest</h1>
-      <p>Your journey from Pallet Town to the Pokémon League starts here. Choose your first partner.</p>
+      <p>Your journey from Pallet Town to the Pokémon League starts here.</p>
+      <p>Difficulty (Hard and Expert raise every enemy's level):</p>
+      <div class="row" id="diff">${DIFFICULTIES.map(([n, b], i) =>
+        `<button data-d="${i}" aria-pressed="${i === 0}">${n}${b ? ` (+${b})` : ""}</button>`).join("")}</div>
+      <p>Now choose your first partner.</p>
       <div class="row">
         ${mons.map(m => `
           <button class="starter" data-name="${m.name}">
@@ -115,6 +122,10 @@ async function showStarters() {
             <div>${typesText(m)}</div>
           </button>`).join("")}
       </div>`;
+    app.querySelectorAll("#diff button").forEach(btn => btn.addEventListener("click", () => {
+      state.difficulty = Number(btn.dataset.d);
+      app.querySelectorAll("#diff button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    }));
     app.querySelectorAll(".starter").forEach(btn =>
       btn.addEventListener("click", () => {
         state.party = [makeBattler(mons.find(m => m.name === btn.dataset.name), 5)];
@@ -142,7 +153,7 @@ function showRoute() {
   app.innerHTML = `
     <h2>${route.name}</h2>
     <p>${route.blurb}</p>
-    <p class="stats">Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
+    <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
     <div class="party">${state.party.map(monCard).join("")}</div>
     <p><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button></p>
     <ul class="path">${nodes}</ul>
@@ -168,7 +179,7 @@ async function playNode(i) {
   try {
     if (node.type === "wild") {
       const [lo, hi] = route.levels || [3, 5];
-      const enemy = makeBattler(await getPokemon(pick(route.wild)), randInt(lo, hi));
+      const enemy = makeBattler(await getPokemon(pick(route.wild)), randInt(lo, hi) + levelBonus());
       return showEncounter(enemy, i);
     }
     if (node.type === "gift") {
