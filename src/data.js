@@ -39,7 +39,10 @@ const EVOLUTIONS = {
   pidgey: [18, "pidgeotto"], pidgeotto: [36, "pidgeot"],
   rattata: [20, "raticate"], geodude: [25, "graveler"],
   oddish: [21, "gloom"], zubat: [22, "golbat"], paras: [24, "parasect"],
-  spearow: [20, "fearow"], ekans: [22, "arbok"], sandshrew: [22, "sandslash"]
+  spearow: [20, "fearow"], ekans: [22, "arbok"], sandshrew: [22, "sandslash"],
+  bellsprout: [21, "weepinbell"], abra: [16, "kadabra"], mankey: [28, "primeape"],
+  meowth: [28, "persian"], diglett: [26, "dugtrio"], machop: [28, "machoke"],
+  venonat: [31, "venomoth"]
 };
 
 const BADGE_PERK = "Your Pokémon deal 10% more damage (stacks with each badge).";
@@ -168,7 +171,90 @@ const ROUTES = [
       { type: "heal", label: "Pokémon Center" },
       { type: "gym", leader: "Misty", badge: "Cascade Badge", label: "Gym: Misty",
         team: [["staryu", 11], ["starmie", 13]] },
-      { type: "end", label: "Vermilion City is next" }
+      { type: "end", label: "Route 24 is next" }
+    ]
+  },
+  {
+    id: "route-24", name: "Route 24",
+    blurb: "Nugget Bridge, north of Cerulean City, where trainers challenge you one after another.",
+    wild: ["caterpie", "weedle", "pidgey", "oddish", "bellsprout", "abra"],
+    levels: [11, 14],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Camper Liam", label: "Trainer: Camper Liam",
+        team: [["weedle", 13], ["kakuna", 13]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Lass Reli", label: "Trainer: Lass Reli",
+        team: [["oddish", 14], ["bellsprout", 14]] },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest on the bridge" },
+      { type: "end", label: "Route 25" }
+    ]
+  },
+  {
+    id: "route-25", name: "Route 25",
+    blurb: "A winding seaside path that leads to Bill's cottage.",
+    wild: ["pidgey", "oddish", "bellsprout", "abra", "venonat"],
+    levels: [12, 15],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Franklin", label: "Trainer: Hiker Franklin",
+        team: [["geodude", 14], ["machop", 14]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 4, label: "Bill gives you Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest at Bill's cottage" },
+      { type: "end", label: "Routes 5 and 6" }
+    ]
+  },
+  {
+    id: "route-5-6", name: "Routes 5 and 6",
+    blurb: "The long road south from Cerulean City, past the daycare and down to Vermilion.",
+    wild: ["pidgey", "oddish", "bellsprout", "meowth", "mankey"],
+    levels: [13, 16],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Lass Dana", label: "Trainer: Lass Dana",
+        team: [["oddish", 15], ["bellsprout", 15]] },
+      { type: "gift", mon: "diglett", level: 15, label: "A kid offers you a Pokémon" },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Bug Catcher Elijah", label: "Trainer: Bug Catcher Elijah",
+        team: [["kakuna", 15], ["venonat", 15]] },
+      { type: "heal", label: "Rest by the road" },
+      { type: "end", label: "Vermilion City port" }
+    ]
+  },
+  {
+    id: "ss-anne", name: "S.S. Anne",
+    blurb: "A luxury cruise ship docked at Vermilion City, packed with trainers.",
+    wild: [],
+    nodes: [
+      { type: "trainer", name: "Sailor Dylan", label: "Trainer: Sailor Dylan",
+        team: [["machop", 16], ["shellder", 16]] },
+      { type: "trainer", name: "Gentleman Thomas", label: "Trainer: Gentleman Thomas",
+        team: [["growlithe", 17]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "trainer", name: "Fisherman Barney", label: "Trainer: Fisherman Barney",
+        team: [["goldeen", 16], ["tentacool", 16]] },
+      { type: "heal", label: "Ship's cabin" },
+      { type: "trainer", name: "Sailor Edmond", label: "Trainer: Sailor Edmond",
+        team: [["shellder", 17], ["machop", 17]] },
+      { type: "end", label: "Vermilion City" }
+    ]
+  },
+  {
+    id: "vermilion-city", name: "Vermilion City",
+    blurb: "A busy port town. Its gym leader uses Electric Pokémon, which Ground types can't be hurt by.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "gym", leader: "Lt. Surge", badge: "Thunder Badge", label: "Gym: Lt. Surge",
+        team: [["voltorb", 14], ["pikachu", 15], ["raichu", 17]] },
+      { type: "end", label: "Route 9 is next" }
     ]
   }
 ];
