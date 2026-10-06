@@ -42,7 +42,7 @@ function calcStats(m, L) {
 }
 
 function makeBattler(m, level) {
-  const b = { ...m, level, xp: 0 };
+  const b = { ...m, level, xp: 0, moves: [] };
   Object.assign(b, calcStats(m, level));
   b.curHp = b.maxHp;
   return b;
@@ -65,32 +65,103 @@ function attackRoll(att, def) {
   return { dmg, type, eff, crit };
 }
 
-const MOVES = {
-  normal: "Tackle", fire: "Ember", water: "Water Gun", electric: "Thunder Shock", grass: "Vine Whip",
-  ice: "Ice Beam", fighting: "Karate Chop", poison: "Poison Sting", ground: "Dig", flying: "Wing Attack",
-  psychic: "Confusion", bug: "Bug Bite", rock: "Rock Throw", ghost: "Lick", dragon: "Dragon Rage",
-  dark: "Bite", steel: "Metal Claw", fairy: "Fairy Wind"
-};
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Runs the whole fight and returns a log the UI can play back.
+// ---------- Moves ----------
+const SPECIAL_TYPES = ["fire", "water", "grass", "electric", "psychic", "ice", "dragon", "dark", "fairy"];
+const SIGNATURE = {
+  normal: "Tackle", fire: "Ember", water: "Water Gun", electric: "Thunder Shock", grass: "Vine Whip",
+  ice: "Powder Snow", fighting: "Karate Chop", poison: "Acid", ground: "Mud Shot", flying: "Peck",
+  psychic: "Confusion", bug: "Leech Life", rock: "Rock Throw", ghost: "Lick", dragon: "Twister",
+  dark: "Bite", steel: "Metal Claw", fairy: "Fairy Wind"
+};
+// A basic move of the Pokémon's own type, so nobody is stuck with no attack that fits it.
+function signatureMove(type) {
+  const label = SIGNATURE[type] || "Tackle";
+  return { name: label.toLowerCase().replace(/ /g, "-"), label, type, power: 40, accuracy: 100,
+    pp: 25, curPp: 25, cls: SPECIAL_TYPES.includes(type) ? "special" : "physical" };
+}
+
+// Gives a Pokémon the last 4 attacking moves it has learned at its level.
+// Returns the labels of any newly learned moves.
+async function refreshMoves(m) {
+  const had = new Set((m.moves || []).map(x => x.name));
+  const learnable = [];
+  for (const e of (m.learnset || [])) {
+    if (e.level > m.level) continue;
+    const i = learnable.indexOf(e.name);
+    if (i >= 0) learnable.splice(i, 1);
+    learnable.push(e.name);
+  }
+  const details = (await Promise.all(learnable.slice(-8).map(n => getMove(n))))
+    .filter(x => x && x.power && !MOVE_BLACKLIST.includes(x.name));
+  let set = details.slice(-4).map(x => ({ ...x, curPp: x.pp }));
+  if (!set.some(x => m.types.includes(x.type))) set = set.slice(-3).concat(signatureMove(m.types[0]));
+  for (const mv of set) {
+    const old = (m.moves || []).find(x => x.name === mv.name);
+    if (old) mv.curPp = Math.min(old.curPp == null ? mv.pp : old.curPp, mv.pp);
+  }
+  m.moves = set;
+  return had.size ? set.filter(x => !had.has(x.name)).map(x => x.label) : [];
+}
+const restorePP = m => (m.moves || []).forEach(x => { x.curPp = x.pp; });
+
+// Auto-battle picks whichever move it expects to do the most damage.
+function pickMove(att, def, pp) {
+  let best = -1, bestScore = -1;
+  att.moves.forEach((mv, i) => {
+    if (pp[i] <= 0) return;
+    const phys = mv.cls === "physical";
+    const ratio = (phys ? att.atk : att.spa) / (phys ? def.def : def.spd);
+    const score = mv.power * (mv.accuracy / 100) * effectiveness(mv.type, def.types)
+      * (att.types.includes(mv.type) ? 1.5 : 1) * ratio;
+    if (score > bestScore) { bestScore = score; best = i; }
+  });
+  return best;
+}
+
+function attackRoll(att, def, pp) {
+  if (!att.moves || !att.moves.length) att.moves = [signatureMove(att.types[0])];
+  const i = pickMove(att, def, pp);
+  const mv = i >= 0 ? att.moves[i]
+    : { label: "Struggle", type: "normal", power: 50, accuracy: 100, cls: "physical" };
+  if (i >= 0) pp[i]--;
+  if (Math.random() * 100 >= mv.accuracy) return { dmg: 0, mv, eff: 1, crit: false, miss: true };
+  const eff = effectiveness(mv.type, def.types);
+  const phys = mv.cls === "physical";
+  const A = phys ? att.atk : att.spa;
+  const D = phys ? def.def : def.spd;
+  const base = Math.floor(Math.floor(((2 * att.level) / 5 + 2) * mv.power * A / D) / 50) + 2;
+  const stab = att.types.includes(mv.type) ? 1.5 : 1;
+  const crit = Math.random() < 1 / 16;
+  const dmg = eff === 0 ? 0 :
+    Math.max(1, Math.floor(base * stab * eff * (crit ? 1.5 : 1) * (0.85 + Math.random() * 0.15)));
+  return { dmg, mv, eff, crit, miss: false };
+}
+
 // weaken = true stops once the wild Pokémon is low (never knocks it out), so it can be caught.
 function simulate(player, enemy, weaken = false, boost = 1) {
+  for (const m of [player, enemy]) if (!m.moves || !m.moves.length) m.moves = [signatureMove(m.types[0])];
   const mons = { p: player, e: enemy };
   const hp = { p: player.curHp, e: enemy.curHp };
+  const pp = {
+    p: player.moves.map(x => (x.curPp == null ? x.pp : x.curPp)),
+    e: enemy.moves.map(x => (x.curPp == null ? x.pp : x.curPp))
+  };
   const order = (player.spe > enemy.spe || (player.spe === enemy.spe && Math.random() < 0.5))
     ? ["p", "e"] : ["e", "p"];
   const log = [];
 
-  outer: for (let turn = 0; turn < 60 && hp.p > 0 && hp.e > 0; turn++) {
+  outer: for (let turn = 0; turn < 80 && hp.p > 0 && hp.e > 0; turn++) {
     for (const s of order) {
       const o = s === "p" ? "e" : "p";
       if (hp.p <= 0 || hp.e <= 0) break;
-      const r = attackRoll(mons[s], mons[o]);
+      const r = attackRoll(mons[s], mons[o], pp[s]);
       if (s === "p" && r.dmg) r.dmg = Math.max(1, Math.round(r.dmg * boost));
       hp[o] = Math.max(weaken && o === "e" ? 1 : 0, hp[o] - r.dmg);
-      let text = `${cap(mons[s].name)} used ${MOVES[r.type] || cap(r.type)}!`;
-      if (r.eff === 0) text += " It had no effect.";
+      let text = `${cap(mons[s].name)} used ${r.mv.label}!`;
+      if (r.miss) text += " But it missed!";
+      else if (r.eff === 0) text += " It had no effect.";
       else if (r.eff > 1) text += " It's super effective!";
       else if (r.eff < 1) text += " It's not very effective.";
       if (r.crit && r.dmg) text += " A critical hit!";
@@ -99,7 +170,7 @@ function simulate(player, enemy, weaken = false, boost = 1) {
       if (weaken && hp.e <= enemy.maxHp * 0.3) break outer;
     }
   }
-  return { log, winner: hp.p > 0 ? "p" : "e", hp };
+  return { log, winner: hp.p > 0 ? "p" : "e", hp, pp };
 }
 
 // Returns messages about any level-ups.
