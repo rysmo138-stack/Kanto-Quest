@@ -72,3 +72,5 @@ small { opacity: .75; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 
 button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.moves { font-size: 13px; opacity: .85; flex: 1 1 180px; line-height: 1.5; }
