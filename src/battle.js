@@ -188,7 +188,8 @@ function newBattleCtx(player, enemy, weaken = false, boost = 1) {
 
 // Plays one round. playerMove is a move index, or null to let the auto-battler choose.
 // Returns just the new log entries from this round.
-function playRound(ctx, playerMove = null) {
+// itemFn, if given, replaces the player's attack this round (using an item costs your turn).
+function playRound(ctx, playerMove = null, itemFn = null) {
   const start = ctx.log.length;
   const { mons, hp } = ctx;
   const say = text => ctx.log.push({ text, hp: { ...hp }, st: { p: mons.p.status, e: mons.e.status } });
@@ -200,6 +201,7 @@ function playRound(ctx, playerMove = null) {
     const o = s === "p" ? "e" : "p";
     const me = mons[s], foe = mons[o];
     if (hp.p <= 0 || hp.e <= 0) break;
+    if (s === "p" && itemFn) { itemFn(ctx, say); continue; }
 
     // Status can stop a Pokémon from moving.
     if (me.status === "sleep") {
@@ -275,8 +277,8 @@ function gainXp(b, amount) {
 }
 
 // Catch odds: better when the target is hurt. Full HP is about 20%, almost no HP about 60%.
-function catchChance(enemy) {
+function catchChance(enemy, ballMult = 1) {
   const base = 0.6 * (3 * enemy.maxHp - 2 * enemy.curHp) / (3 * enemy.maxHp);
   const bonus = { sleep: 2, freeze: 2, paralysis: 1.5, poison: 1.5, burn: 1.5 }[enemy.status] || 1;
-  return Math.min(0.95, base * bonus);
+  return Math.min(0.95, base * bonus * ballMult);
 }
