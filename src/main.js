@@ -60,6 +60,40 @@ function rivalSpecies(level) {
   while (EVOLUTIONS[n] && level >= EVOLUTIONS[n][0]) n = EVOLUTIONS[n][1];
   return n;
 }
+// A fuller party card: sprite, types, HP, and XP, with a stripe in the Pokémon's main type color.
+function partyCard(m) {
+  const xp = Math.min(100, Math.round((100 * (m.xp || 0)) / (m.level * m.level)));
+  return `<div class="pcard bt-${m.types[0]} ${m.curHp <= 0 ? "fainted" : ""}">
+    <img src="${m.sprite}" alt="${cap(m.name)}">
+    <div class="pname">${cap(m.name)} <small>Lv${m.level}</small> ${stTag(m.status)}</div>
+    <div>${typesText(m)}</div>
+    ${hpBar(m.curHp, m.maxHp)}<small>${m.curHp}/${m.maxHp} HP</small>
+    <div class="xpbar" title="XP"><div style="width:${xp}%"></div></div>
+  </div>`;
+}
+
+// The route as a winding path: rows of 4 stops that snake back and forth, joined by a line.
+function mapHtml(route) {
+  const PER = 4;
+  const rows = [];
+  for (let r = 0; r * PER < route.nodes.length; r++) {
+    const slice = route.nodes.slice(r * PER, r * PER + PER);
+    const more = (r + 1) * PER < route.nodes.length;
+    const nodes = slice.map((n, k) => {
+      const i = r * PER + k;
+      const done = i < state.nodeIndex, current = i === state.nodeIndex;
+      const short = n.label.replace(/^(Trainer|Gym): /, "");
+      const lead0 = state.party.find(p => p.curHp > 0) || state.party[0];
+      return `<button class="mapnode n-${n.type} ${done ? "done" : current ? "current" : "locked"}" data-i="${i}"
+        title="${n.label}" ${current ? "" : "disabled"}>
+        ${current && lead0 ? `<img class="marker" src="${lead0.sprite}" alt="">` : ""}
+        <span class="icon">${NODE_ICONS[n.type]}</span><span class="lbl">${short}</span></button>`;
+    }).join("");
+    rows.push(`<div class="maprow ${r % 2 ? "rev" : ""} ${more ? "more" : ""}" style="--n:${slice.length}">${nodes}</div>`);
+  }
+  return `<div class="map">${rows.join("")}</div>`;
+}
+
 // The battle picture: foe top right, your Pokémon bottom left, an info box for each.
 function sceneHtml(me, foe) {
   const t = state.terrain || "grass";
@@ -224,29 +258,22 @@ function showRoute() {
   const route = ROUTES[state.routeIndex];
   const finished = state.nodeIndex >= route.nodes.length;
   const next = ROUTES[state.routeIndex + 1];
-  const nodes = route.nodes.map((n, i) => {
-    const done = i < state.nodeIndex, current = i === state.nodeIndex;
-    const cls = done ? "done" : current ? "" : "locked";
-    return `<li><button class="node ${cls}" data-i="${i}" ${current ? "" : "disabled"}>
-      <span class="icon">${NODE_ICONS[n.type]}</span><span>${n.label}</span></button></li>`;
-  }).join("");
-
   app.innerHTML = `
-    <h2>${route.name}</h2>
+    <h2>${route.name} <small>Stop ${Math.min(state.nodeIndex + 1, route.nodes.length)} of ${route.nodes.length}</small></h2>
     <p>${route.blurb}</p>
     <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
-    <div class="party">${state.party.map(monCard).join("")}</div>
+    <div class="party">${state.party.map(partyCard).join("")}</div>
     <p class="row"><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button>
     <button id="bag">Bag</button>
     <button id="dex">Pokédex (${Object.keys(state.dex).length} seen)</button>
     <button id="mode">Battles: ${state.manual ? "Manual" : "Auto"} (tap to switch)</button></p>
-    <ul class="path">${nodes}</ul>
+    ${mapHtml(route)}
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
     ${finished ? (next
       ? `<p></p><button class="primary" id="travel">Travel to ${next.name}</button>`
       : `<p></p><div class="panel"><p>That's everything built so far. Routes 16 to 18, Cycling Road, and Koga in Fuchsia City come next!</p></div>`) : ""}`;
 
-  app.querySelectorAll(".node:not([disabled])").forEach(btn =>
+  app.querySelectorAll(".mapnode:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
   document.getElementById("manage").addEventListener("click", showParty);
   document.getElementById("bag").addEventListener("click", () => showBag(showRoute));
@@ -390,11 +417,11 @@ function showShop(nodeI, note = "") {
 function showParty() {
   const p = state.party, b = state.box;
   const movesLine = m => `<small class="moves">${(m.moves || []).map(x => `${x.label} ${typeBadge(x.type)} ${x.power || "status"}, PP ${x.curPp}/${x.pp}`).join("<br>")}</small>`;
-  const partyRows = p.map((m, i) => `<div class="partyrow">${monCard(m)}${movesLine(m)}<div class="row">
+  const partyRows = p.map((m, i) => `<div class="partyrow">${partyCard(m)}${movesLine(m)}<div class="row">
       <button data-a="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>Up</button>
       <button data-a="down" data-i="${i}" ${i === p.length - 1 ? "disabled" : ""}>Down</button>
       <button data-a="tobox" data-i="${i}" ${p.length <= 1 ? "disabled" : ""}>To box</button></div></div>`).join("");
-  const boxRows = b.length ? b.map((m, i) => `<div class="partyrow">${monCard(m)}${movesLine(m)}<div class="row">
+  const boxRows = b.length ? b.map((m, i) => `<div class="partyrow">${partyCard(m)}${movesLine(m)}<div class="row">
       <button data-a="toparty" data-i="${i}" ${p.length >= 6 ? "disabled" : ""}>Add to party</button></div></div>`).join("")
     : `<p>Your box is empty.</p>`;
   app.innerHTML = `
@@ -431,7 +458,7 @@ function showGymIntro(node, foes, nodeI) {
     <p>Here is ${node.leader}'s team. Win to earn the ${node.badge}. Perk: ${BADGE_PERK}</p>
     <div class="party">${foes.map(monCard).join("")}</div>
     <p>Your party:</p>
-    <div class="party">${state.party.map(monCard).join("")}</div>
+    <div class="party">${state.party.map(partyCard).join("")}</div>
     <div class="row"><button class="primary" id="go">Challenge ${node.leader}</button>
     <button id="back">Not yet</button></div>`;
   document.getElementById("go").addEventListener("click", () => runTrainer(node, foes, nodeI, ""));
