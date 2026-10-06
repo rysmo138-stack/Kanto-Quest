@@ -3,6 +3,23 @@ const app = document.getElementById("app");
 const freshState = () => ({ party: [], box: [], badges: [], caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
+// ---------- Saving ----------
+const SAVE_KEY = "kq:save";
+function saveGame() {
+  try {
+    const { party, box, badges, caught, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, caught, balls, routeIndex, nodeIndex }));
+  } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
+}
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && s.v === 1 && Array.isArray(s.party) && s.party.length && ROUTES[s.routeIndex]) return s;
+  } catch (e) {}
+  return null;
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const typesText = m => m.types.map(cap).join(" / ");
@@ -51,9 +68,35 @@ async function rewardXp(me, foe, mult = 1) {
 
 // ---------- Screens ----------
 function showGameOver(msg) {
+  clearSave();
   app.innerHTML = `<h2>Out of Pokémon</h2><div class="panel"><p>${msg}</p>
     <button class="primary" id="again">Start over</button></div>`;
   document.getElementById("again").addEventListener("click", showStarters);
+}
+
+function showTitle() {
+  const s = loadSave();
+  if (!s) return showStarters();
+  const route = ROUTES[s.routeIndex];
+  const first = s.party.find(p => p.curHp > 0) || s.party[0];
+  app.innerHTML = `
+    <h1>Kanto Quest</h1>
+    <div class="panel">
+      <p>Saved run: ${route.name}, ${s.badges.length} badge${s.badges.length === 1 ? "" : "s"},
+      ${s.party.length} in your party, led by ${cap(first.name)} Lv${first.level}.</p>
+      <div class="row"><button class="primary" id="cont">Continue</button>
+      <button id="new">New game</button></div>
+    </div>`;
+  document.getElementById("cont").addEventListener("click", () => {
+    state = Object.assign(freshState(), s, { message: "" });
+    showRoute();
+  });
+  const newBtn = document.getElementById("new");
+  newBtn.addEventListener("click", () => {
+    if (newBtn.dataset.sure) { clearSave(); return showStarters(); }
+    newBtn.dataset.sure = "1";
+    newBtn.textContent = "Really delete the saved run?";
+  });
 }
 
 async function showStarters() {
@@ -85,6 +128,7 @@ async function showStarters() {
 }
 
 function showRoute() {
+  saveGame();
   const route = ROUTES[state.routeIndex];
   const finished = state.nodeIndex >= route.nodes.length;
   const next = ROUTES[state.routeIndex + 1];
@@ -100,6 +144,7 @@ function showRoute() {
     <p>${route.blurb}</p>
     <p class="stats">Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
     <div class="party">${state.party.map(monCard).join("")}</div>
+    <p><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button></p>
     <ul class="path">${nodes}</ul>
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
     ${finished ? (next
@@ -108,6 +153,7 @@ function showRoute() {
 
   app.querySelectorAll(".node:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
+  document.getElementById("manage").addEventListener("click", showParty);
   const travel = document.getElementById("travel");
   if (travel) travel.addEventListener("click", () => {
     state.routeIndex++; state.nodeIndex = 0; state.caught = false; state.message = ""; showRoute();
@@ -153,6 +199,35 @@ async function playNode(i) {
   }
   state.nodeIndex = i + 1;
   showRoute();
+}
+
+// ---------- Party management ----------
+function showParty() {
+  const p = state.party, b = state.box;
+  const partyRows = p.map((m, i) => `<div class="partyrow">${monCard(m)}<div class="row">
+      <button data-a="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>Up</button>
+      <button data-a="down" data-i="${i}" ${i === p.length - 1 ? "disabled" : ""}>Down</button>
+      <button data-a="tobox" data-i="${i}" ${p.length <= 1 ? "disabled" : ""}>To box</button></div></div>`).join("");
+  const boxRows = b.length ? b.map((m, i) => `<div class="partyrow">${monCard(m)}<div class="row">
+      <button data-a="toparty" data-i="${i}" ${p.length >= 6 ? "disabled" : ""}>Add to party</button></div></div>`).join("")
+    : `<p>Your box is empty.</p>`;
+  app.innerHTML = `
+    <h2>Your party</h2>
+    <p>The first healthy Pokémon in this list fights first. You can carry up to 6.</p>
+    ${partyRows}
+    <h2>Box</h2>
+    ${boxRows}
+    <p></p><button class="primary" id="back">Back to the route</button>`;
+  app.querySelectorAll("button[data-a]").forEach(btn => btn.addEventListener("click", () => {
+    const i = Number(btn.dataset.i), a = btn.dataset.a;
+    if (a === "up") [p[i - 1], p[i]] = [p[i], p[i - 1]];
+    if (a === "down") [p[i + 1], p[i]] = [p[i], p[i + 1]];
+    if (a === "tobox") b.push(p.splice(i, 1)[0]);
+    if (a === "toparty") p.push(b.splice(i, 1)[0]);
+    saveGame();
+    showParty();
+  }));
+  document.getElementById("back").addEventListener("click", showRoute);
 }
 
 // ---------- Gym and trainers ----------
@@ -296,4 +371,4 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
   timer = setTimeout(next, 600);
 }
 
-showStarters();
+showTitle();
