@@ -38,7 +38,12 @@ function monCard(m) {
   return `<div class="mon ${m.curHp <= 0 ? "fainted" : ""}"><img src="${m.sprite}" alt="${cap(m.name)}">
     <div>${cap(m.name)} Lv${m.level}</div>${hpBar(m.curHp, m.maxHp)}<div>${m.curHp}/${m.maxHp}</div></div>`;
 }
-const makeFoes = team => Promise.all(team.map(([n, l]) => getPokemon(n).then(b => makeBattler(b, l + levelBonus()))));
+async function newBattler(name, level) {
+  const b = makeBattler(await getPokemon(name), level);
+  await refreshMoves(b);
+  return b;
+}
+const makeFoes = team => Promise.all(team.map(([n, l]) => newBattler(n, l + levelBonus())));
 
 // ---------- XP and evolution ----------
 async function evolveIfReady(m) {
@@ -64,7 +69,9 @@ async function rewardXp(me, foe, mult = 1) {
     if (m.curHp <= 0) continue;
     const msgs = gainXp(m, m === me ? base : Math.round(base / 2));
     const extra = await evolveIfReady(m);
-    out.push((m === me ? msgs : msgs.slice(1)).join(" ") + extra);
+    const learned = await refreshMoves(m);
+    const moveMsg = learned.length ? ` ${cap(m.name)} learned ${learned.join(" and ")}!` : "";
+    out.push((m === me ? msgs : msgs.slice(1)).join(" ") + extra + moveMsg);
   }
   return out.filter(Boolean).join(" ");
 }
@@ -90,8 +97,16 @@ function showTitle() {
       <div class="row"><button class="primary" id="cont">Continue</button>
       <button id="new">New game</button></div>
     </div>`;
-  document.getElementById("cont").addEventListener("click", () => {
+  document.getElementById("cont").addEventListener("click", async () => {
     state = Object.assign(freshState(), s, { message: "" });
+    app.innerHTML = `<p>Loading...</p>`;
+    try {
+      for (const p of [...state.party, ...state.box]) {
+        if (p.moves && p.moves.length) continue;
+        p.learnset = (await getPokemon(p.name)).learnset;
+        await refreshMoves(p);
+      }
+    } catch (err) { /* battles fall back to a basic move if this fails */ }
     showRoute();
   });
   const newBtn = document.getElementById("new");
@@ -127,8 +142,11 @@ async function showStarters() {
       app.querySelectorAll("#diff button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
     }));
     app.querySelectorAll(".starter").forEach(btn =>
-      btn.addEventListener("click", () => {
-        state.party = [makeBattler(mons.find(m => m.name === btn.dataset.name), 5)];
+      btn.addEventListener("click", async () => {
+        app.innerHTML = `<p>Loading...</p>`;
+        const starter = makeBattler(mons.find(m => m.name === btn.dataset.name), 5);
+        await refreshMoves(starter);
+        state.party = [starter];
         showRoute();
       }));
   } catch (err) {
@@ -179,11 +197,11 @@ async function playNode(i) {
   try {
     if (node.type === "wild") {
       const [lo, hi] = route.levels || [3, 5];
-      const enemy = makeBattler(await getPokemon(pick(route.wild)), randInt(lo, hi) + levelBonus());
+      const enemy = await newBattler(pick(route.wild), randInt(lo, hi) + levelBonus());
       return showEncounter(enemy, i);
     }
     if (node.type === "gift") {
-      const g = makeBattler(await getPokemon(node.mon), node.level);
+      const g = await newBattler(node.mon, node.level);
       const full = state.party.length >= 6;
       (full ? state.box : state.party).push(g);
       state.message = `<p>The hiker gave you ${cap(g.name)} (Lv${g.level})! It's a Grass type, which is strong against Rock Pokémon. ${full ? "Your party was full, so it went to your box." : ""}</p>`;
@@ -203,8 +221,8 @@ async function playNode(i) {
     state.party.forEach(m => { if (m.curHp > 0) m.curHp = Math.min(m.maxHp, m.curHp + 20); });
     state.message = `<p>You found a Potion and used it. Your healthy Pokémon restored 20 HP.</p>`;
   } else if (node.type === "heal") {
-    state.party.forEach(m => { m.curHp = m.maxHp; });
-    state.message = `<p>Your whole party is back to full health.</p>`;
+    state.party.forEach(m => { m.curHp = m.maxHp; restorePP(m); });
+    state.message = `<p>Your whole party is back to full health, and their moves are restored.</p>`;
   } else if (node.type === "end") {
     state.message = `<p>You arrived at: ${node.label}.</p>`;
   }
@@ -215,11 +233,12 @@ async function playNode(i) {
 // ---------- Party management ----------
 function showParty() {
   const p = state.party, b = state.box;
-  const partyRows = p.map((m, i) => `<div class="partyrow">${monCard(m)}<div class="row">
+  const movesLine = m => `<small class="moves">${(m.moves || []).map(x => `${x.label} (${x.type}, ${x.power}, PP ${x.curPp}/${x.pp})`).join("<br>")}</small>`;
+  const partyRows = p.map((m, i) => `<div class="partyrow">${monCard(m)}${movesLine(m)}<div class="row">
       <button data-a="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>Up</button>
       <button data-a="down" data-i="${i}" ${i === p.length - 1 ? "disabled" : ""}>Down</button>
       <button data-a="tobox" data-i="${i}" ${p.length <= 1 ? "disabled" : ""}>To box</button></div></div>`).join("");
-  const boxRows = b.length ? b.map((m, i) => `<div class="partyrow">${monCard(m)}<div class="row">
+  const boxRows = b.length ? b.map((m, i) => `<div class="partyrow">${monCard(m)}${movesLine(m)}<div class="row">
       <button data-a="toparty" data-i="${i}" ${p.length >= 6 ? "disabled" : ""}>Add to party</button></div></div>`).join("")
     : `<p>Your box is empty.</p>`;
   app.innerHTML = `
@@ -265,7 +284,7 @@ function runTrainer(node, foes, nodeI, log) {
     let msg = `<p>You defeated ${who}!</p>`;
     if (node.badge) {
       state.badges.push(node.badge);
-      state.party.forEach(p => { p.curHp = p.maxHp; });
+      state.party.forEach(p => { p.curHp = p.maxHp; restorePP(p); });
       msg = `<p>You defeated ${who} and earned the ${node.badge}! ${BADGE_PERK} Your whole party was healed to full health.</p>`;
     }
     state.message = msg + (log ? `<p>${log}</p>` : "");
@@ -363,6 +382,8 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
     draw(result.hp);
     me.curHp = result.hp.p;
     foe.curHp = result.hp.e;
+    me.moves.forEach((mv, i) => { mv.curPp = result.pp.p[i]; });
+    foe.moves.forEach((mv, i) => { foe.moves[i].curPp = result.pp.e[i]; });
     const foeDown = foe.curHp <= 0, meDown = me.curHp <= 0;
     line.textContent = foeDown ? `${cap(foe.name)} fainted!` : meDown ? `${cap(me.name)} fainted!` : "The fight paused.";
     actions.innerHTML = `<button class="primary" id="go">Continue</button>`;
