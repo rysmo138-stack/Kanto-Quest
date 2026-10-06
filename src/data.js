@@ -17,7 +17,7 @@ function buildLearnset(d) {
 }
 
 async function getPokemon(name) {
-  const key = "kq:mon2:" + name;
+  const key = "kq:mon3:" + name;
   try {
     const cached = localStorage.getItem(key);
     if (cached) return JSON.parse(cached);
@@ -28,6 +28,9 @@ async function getPokemon(name) {
   const d = await res.json();
 
   // Keep only what the game needs, so the cache stays small.
+  // Animated Gen 5 sprites exist for most of the Pokémon we use.
+  const v = d.sprites.versions;
+  const gen5 = v && v["generation-v"] && v["generation-v"]["black-white"] && v["generation-v"]["black-white"].animated;
   const stat = n => d.stats.find(s => s.stat.name === n).base_stat;
   const mon = {
     id: d.id,
@@ -37,6 +40,9 @@ async function getPokemon(name) {
     spAttack: stat("special-attack"), spDefense: stat("special-defense"),
     speed: stat("speed"),
     sprite: d.sprites.front_default,
+    back: d.sprites.back_default || null,
+    aFront: gen5 ? gen5.front_default : null,
+    aBack: gen5 ? gen5.back_default : null,
     learnset: buildLearnset(d)
   };
   try { localStorage.setItem(key, JSON.stringify(mon)); } catch (e) {}
@@ -106,7 +112,7 @@ const BADGE_PERK = "Your Pokémon deal 10% more damage (stacks with each badge).
 // Node types: wild, trainer, item, heal, gym, end.
 const ROUTES = [
   {
-    id: "route-1", name: "Route 1",
+    id: "route-1", terrain: "grass", name: "Route 1",
     blurb: "The grassy road between Pallet Town and Viridian City.",
     wild: ["pidgey", "rattata"],
     nodes: [
@@ -122,7 +128,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-2", name: "Route 2",
+    id: "route-2", terrain: "grass", name: "Route 2",
     blurb: "A path north of Viridian City, with tall grass on both sides.",
     wild: ["pidgey", "rattata", "caterpie", "weedle"],
     levels: [4, 7],
@@ -140,7 +146,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "viridian-forest", name: "Viridian Forest",
+    id: "viridian-forest", terrain: "forest", name: "Viridian Forest",
     blurb: "A dense forest full of bug Pokémon and bug catchers.",
     wild: ["caterpie", "caterpie", "weedle", "weedle", "pidgey", "pikachu"],
     levels: [5, 8],
@@ -161,7 +167,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "pewter-city", name: "Pewter City",
+    id: "pewter-city", terrain: "city", name: "Pewter City",
     blurb: "A grey stone city. Its gym leader uses Rock-type Pokémon.",
     wild: [],
     nodes: [
@@ -173,7 +179,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-3", name: "Route 3",
+    id: "route-3", terrain: "grass", name: "Route 3",
     blurb: "A rocky trail east of Pewter City, full of trainers heading to Mt. Moon.",
     wild: ["pidgey", "spearow", "rattata", "ekans", "jigglypuff"],
     levels: [7, 10],
@@ -191,7 +197,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "mt-moon", name: "Mt. Moon",
+    id: "mt-moon", terrain: "cave", name: "Mt. Moon",
     blurb: "A dark cave. Zubat swarm the tunnels, and strange Pokémon hide in the shadows.",
     wild: ["zubat", "zubat", "zubat", "geodude", "paras", "clefairy"],
     levels: [8, 12],
@@ -211,7 +217,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-4", name: "Route 4",
+    id: "route-4", terrain: "grass", name: "Route 4",
     blurb: "The ledge-lined road out of Mt. Moon, leading down to Cerulean City.",
     wild: ["rattata", "spearow", "ekans", "sandshrew"],
     levels: [10, 13],
@@ -226,7 +232,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "cerulean-city", name: "Cerulean City",
+    id: "cerulean-city", terrain: "city", name: "Cerulean City",
     blurb: "A seaside city. Its gym leader specializes in Water Pokémon, which are weak to Grass and Electric.",
     wild: [],
     nodes: [
@@ -238,7 +244,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-24", name: "Route 24",
+    id: "route-24", terrain: "grass", name: "Route 24",
     blurb: "Nugget Bridge, north of Cerulean City, where trainers challenge you one after another.",
     wild: ["caterpie", "weedle", "pidgey", "oddish", "bellsprout", "abra"],
     levels: [11, 14],
@@ -259,7 +265,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-25", name: "Route 25",
+    id: "route-25", terrain: "grass", name: "Route 25",
     blurb: "A winding seaside path that leads to Bill's cottage.",
     wild: ["pidgey", "oddish", "bellsprout", "abra", "venonat"],
     levels: [12, 15],
@@ -276,7 +282,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-5-6", name: "Routes 5 and 6",
+    id: "route-5-6", terrain: "grass", name: "Routes 5 and 6",
     blurb: "The long road south from Cerulean City, past the daycare and down to Vermilion.",
     wild: ["pidgey", "oddish", "bellsprout", "meowth", "mankey"],
     levels: [13, 16],
@@ -295,7 +301,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "ss-anne", name: "S.S. Anne",
+    id: "ss-anne", terrain: "ship", name: "S.S. Anne",
     blurb: "A luxury cruise ship docked at Vermilion City, packed with trainers.",
     wild: [],
     nodes: [
@@ -316,7 +322,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "vermilion-city", name: "Vermilion City",
+    id: "vermilion-city", terrain: "city", name: "Vermilion City",
     blurb: "A busy port town. Its gym leader uses Electric Pokémon, which Ground types can't be hurt by.",
     wild: [],
     nodes: [
@@ -328,7 +334,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-9-10", name: "Routes 9 and 10",
+    id: "route-9-10", terrain: "grass", name: "Routes 9 and 10",
     blurb: "Rocky trails east of Cerulean City, crackling with electricity near the Power Plant.",
     wild: ["spearow", "ekans", "rattata", "sandshrew", "voltorb", "magnemite"],
     levels: [15, 18],
@@ -346,7 +352,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "rock-tunnel", name: "Rock Tunnel",
+    id: "rock-tunnel", terrain: "cave", name: "Rock Tunnel",
     blurb: "A pitch-black cave. Wild Pokémon jump out of the dark with every step.",
     wild: ["zubat", "zubat", "geodude", "machop", "onix"],
     levels: [15, 18],
@@ -366,7 +372,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "lavender-town", name: "Lavender Town",
+    id: "lavender-town", terrain: "tower", name: "Lavender Town",
     blurb: "A quiet town with a haunted Pokémon Tower. Normal-type moves can't hurt Ghost Pokémon.",
     wild: ["gastly", "gastly", "zubat", "cubone"],
     levels: [16, 19],
@@ -387,7 +393,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "route-8", name: "Routes 8 and 7",
+    id: "route-8", terrain: "grass", name: "Routes 8 and 7",
     blurb: "The road west from Lavender Town to Celadon City, with fire-type Pokémon in the grass.",
     wild: ["growlithe", "vulpix", "meowth", "ekans", "sandshrew", "pidgey"],
     levels: [16, 19],
@@ -405,7 +411,7 @@ const ROUTES = [
     ]
   },
   {
-    id: "celadon-city", name: "Celadon City",
+    id: "celadon-city", terrain: "city", name: "Celadon City",
     blurb: "A big city with a department store. Its gym leader uses Grass Pokémon, which are weak to Fire, Flying, and Poison.",
     wild: [],
     nodes: [
