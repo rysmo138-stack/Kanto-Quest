@@ -49,7 +49,7 @@ const MOVE_BLACKLIST = ["self-destruct", "explosion", "hyper-beam", "dream-eater
 
 // Returns null on any failure so one bad move never breaks a battle.
 async function getMove(name) {
-  const key = "kq:move:" + name;
+  const key = "kq:move2:" + name;
   try {
     const cached = localStorage.getItem(key);
     if (cached) return JSON.parse(cached);
@@ -58,7 +58,12 @@ async function getMove(name) {
     const res = await fetch(`${API}/move/${name}`);
     if (!res.ok) return null;
     const d = await res.json();
+    const am = d.meta && d.meta.ailment ? d.meta.ailment.name : null;
+    const ailment = ["poison", "burn", "paralysis", "sleep", "freeze"].includes(am) ? am : null;
     const mv = {
+      ailment,
+      // Damaging moves use their listed chance; pure status moves always try to apply it.
+      ailmentChance: ailment ? ((d.meta.ailment_chance) || (d.power ? 0 : 100)) : 0,
       name: d.name,
       label: d.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
       type: d.type.name,
@@ -108,6 +113,7 @@ const ROUTES = [
       { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
       { type: "wild", label: "Wild encounter" },
       { type: "heal", label: "Rest by the road" },
+      { type: "shop", label: "Viridian Poké Mart" },
       { type: "end", label: "Viridian City" }
     ]
   },
@@ -152,6 +158,7 @@ const ROUTES = [
     wild: [],
     nodes: [
       { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
       { type: "gym", leader: "Brock", badge: "Boulder Badge", label: "Gym: Brock",
         team: [["geodude", 11], ["onix", 13]] },
       { type: "end", label: "Route 3 is next" }
@@ -216,6 +223,7 @@ const ROUTES = [
     wild: [],
     nodes: [
       { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
       { type: "gym", leader: "Misty", badge: "Cascade Badge", label: "Gym: Misty",
         team: [["staryu", 11], ["starmie", 13]] },
       { type: "end", label: "Route 24 is next" }
@@ -299,6 +307,7 @@ const ROUTES = [
     wild: [],
     nodes: [
       { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
       { type: "gym", leader: "Lt. Surge", badge: "Thunder Badge", label: "Gym: Lt. Surge",
         team: [["voltorb", 14], ["pikachu", 15], ["raichu", 17]] },
       { type: "end", label: "Route 9 is next" }
@@ -349,6 +358,7 @@ const ROUTES = [
     levels: [16, 19],
     nodes: [
       { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
       { type: "wild", label: "Wild encounter" },
       { type: "trainer", name: "Channeler Hope", label: "Trainer: Channeler Hope",
         team: [["gastly", 18], ["gastly", 18]] },
@@ -383,6 +393,7 @@ const ROUTES = [
     wild: [],
     nodes: [
       { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
       { type: "gym", leader: "Erika", badge: "Rainbow Badge", label: "Gym: Erika",
         team: [["tangela", 16], ["weepinbell", 17], ["vileplume", 19]] },
       { type: "end", label: "Route 16 is next" }
@@ -390,4 +401,17 @@ const ROUTES = [
   }
 ];
 
-const NODE_ICONS = { wild: "🌿", trainer: "⚔️", item: "🎒", heal: "💊", gym: "🏅", gift: "🎁", end: "🏁" };
+// Items. heal = HP restored, cure = statuses cured, revive = fraction of HP, ball = catch multiplier.
+const ITEMS = {
+  pokeball:    { name: "Poké Ball",    price: 100, ball: 1,   desc: "Catches wild Pokémon." },
+  greatball:   { name: "Great Ball",   price: 250, ball: 1.5, desc: "Catches wild Pokémon 1.5x as well as a Poké Ball." },
+  potion:      { name: "Potion",       price: 100, heal: 20,  desc: "Restores 20 HP." },
+  superpotion: { name: "Super Potion", price: 250, heal: 50,  desc: "Restores 50 HP." },
+  hyperpotion: { name: "Hyper Potion", price: 600, heal: 120, desc: "Restores 120 HP." },
+  antidote:    { name: "Antidote",     price: 70,  cure: ["poison"], desc: "Cures poison." },
+  fullheal:    { name: "Full Heal",    price: 250, cure: "all", desc: "Cures any status problem." },
+  revive:      { name: "Revive",       price: 500, revive: 0.5, desc: "Revives a fainted Pokémon with half its HP." }
+};
+const SHOP_STOCK = ["pokeball", "greatball", "potion", "superpotion", "hyperpotion", "antidote", "fullheal", "revive"];
+
+const NODE_ICONS = { shop: "🏪", wild: "🌿", trainer: "⚔️", item: "🎒", heal: "💊", gym: "🏅", gift: "🎁", end: "🏁" };
