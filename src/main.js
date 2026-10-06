@@ -25,7 +25,8 @@ const DIFFICULTIES = [["Normal", 0], ["Hard", 4], ["Expert", 8]];
 const levelBonus = () => DIFFICULTIES[state.difficulty || 0][1];
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-const typesText = m => m.types.map(cap).join(" / ");
+const typeBadge = t => `<span class="type t-${t}">${cap(t)}</span>`;
+const typesText = m => m.types.map(typeBadge).join(" ");
 const lead = () => state.party.find(m => m.curHp > 0);
 const boost = () => 1 + 0.1 * state.badges.length;
 
@@ -59,6 +60,39 @@ function rivalSpecies(level) {
   while (EVOLUTIONS[n] && level >= EVOLUTIONS[n][0]) n = EVOLUTIONS[n][1];
   return n;
 }
+// The battle picture: foe top right, your Pokémon bottom left, an info box for each.
+function sceneHtml(me, foe) {
+  const t = state.terrain || "grass";
+  const youImg = me.aBack || me.back || me.sprite;
+  const noBack = !(me.aBack || me.back);
+  const xpPct = Math.min(100, Math.round((100 * (me.xp || 0)) / (me.level * me.level)));
+  return `<div class="scene ${t}">
+    <div class="plat foe-plat"></div><div class="plat you-plat"></div>
+    <img id="spr-e" class="spr foe" src="${foe.aFront || foe.sprite}" alt="${cap(foe.name)}">
+    <img id="spr-p" class="spr you ${noBack ? "noback" : ""}" src="${youImg}" alt="${cap(me.name)}">
+    <div class="infobox foe-box"><div>${cap(foe.name)} Lv${foe.level} <span id="st-bar-e">${stTag(foe.status)}</span></div>
+      <div>${typesText(foe)}</div>
+      <div id="bar-e">${hpBar(foe.curHp, foe.maxHp)}<small>${foe.curHp}/${foe.maxHp}</small></div></div>
+    <div class="infobox you-box"><div>${cap(me.name)} Lv${me.level} <span id="st-bar-p">${stTag(me.status)}</span></div>
+      <div>${typesText(me)}</div>
+      <div id="bar-p">${hpBar(me.curHp, me.maxHp)}<small>${me.curHp}/${me.maxHp}</small></div>
+      <div class="xpbar" title="XP"><div style="width:${xpPct}%"></div></div></div>
+  </div>`;
+}
+
+// Small attack, hit, and faint animations. Skipped if the player prefers reduced motion.
+function fxPlay(entry) {
+  if (!entry.fx || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const el = k => document.getElementById("spr-" + k);
+  const { a, h, f } = entry.fx;
+  if (a && el(a)) {
+    const dir = a === "p" ? 1 : -1;
+    el(a).animate([{ transform: "translateX(0)" }, { transform: `translateX(${dir * 28}px)` }, { transform: "translateX(0)" }], { duration: 260 });
+  }
+  if (h && el(h)) setTimeout(() => el(h) && el(h).animate([{ opacity: 1 }, { opacity: .2 }, { opacity: 1 }, { opacity: .3 }, { opacity: 1 }], { duration: 380 }), 180);
+  if (f && el(f)) el(f).animate([{ opacity: 1, transform: "translateY(0)" }, { opacity: 0, transform: "translateY(30px)" }], { duration: 500, fill: "forwards" });
+}
+
 const makeFoes = team => Promise.all(team.map(([n, l]) => newBattler(n === "$rival" ? rivalSpecies(l + levelBonus()) : n, l + levelBonus())));
 
 // ---------- XP and evolution ----------
@@ -125,6 +159,10 @@ function showTitle() {
     }
     try {
       for (const p of [...state.party, ...state.box]) {
+        if (p.back === undefined) {
+          const info = await getPokemon(p.name);
+          p.back = info.back; p.aFront = info.aFront; p.aBack = info.aBack;
+        }
         if (p.moves && p.moves.length && p.moves.every(x => x.ailment !== undefined)) continue;
         p.learnset = (await getPokemon(p.name)).learnset;
         await refreshMoves(p);
@@ -224,6 +262,7 @@ async function playNode(i) {
   const route = ROUTES[state.routeIndex];
   const node = route.nodes[i];
   state.message = "";
+  state.terrain = node.type === "gym" ? "gym" : (route.terrain || "grass");
   app.innerHTML = `<p>Loading...</p>`;
   try {
     if (node.type === "wild") {
@@ -272,7 +311,7 @@ function showDex(back) {
     <p class="stats">Seen: ${entries.length} &nbsp; Caught: ${caught} &nbsp; of 151</p>
     ${entries.length ? `<div class="dexgrid">${entries.map(e => `<div class="mon ${e.caught ? "" : "seenonly"}">
       <img src="${e.sprite}" alt="${cap(e.name)}"><div>#${String(e.id).padStart(3, "0")}</div><div>${cap(e.name)}</div>
-      <small>${e.types.map(cap).join(" / ")}</small><small>${e.caught ? "Caught" : "Seen"}</small></div>`).join("")}</div>`
+      <small>${e.types.map(typeBadge).join(" ")}</small><small>${e.caught ? "Caught" : "Seen"}</small></div>`).join("")}</div>`
       : "<p>You haven't seen any Pokémon yet.</p>"}
     <p></p><button class="primary" id="dexback">Back</button>`;
   document.getElementById("dexback").addEventListener("click", back);
@@ -350,7 +389,7 @@ function showShop(nodeI, note = "") {
 // ---------- Party management ----------
 function showParty() {
   const p = state.party, b = state.box;
-  const movesLine = m => `<small class="moves">${(m.moves || []).map(x => `${x.label} (${x.type}, ${x.power || "status"}, PP ${x.curPp}/${x.pp})`).join("<br>")}</small>`;
+  const movesLine = m => `<small class="moves">${(m.moves || []).map(x => `${x.label} ${typeBadge(x.type)} ${x.power || "status"}, PP ${x.curPp}/${x.pp}`).join("<br>")}</small>`;
   const partyRows = p.map((m, i) => `<div class="partyrow">${monCard(m)}${movesLine(m)}<div class="row">
       <button data-a="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>Up</button>
       <button data-a="down" data-i="${i}" ${i === p.length - 1 ? "disabled" : ""}>Down</button>
@@ -431,13 +470,8 @@ function showEncounter(enemy, nodeI, note = "") {
   const weak = enemy.curHp <= enemy.maxHp * 0.3;
   app.innerHTML = `
     <h2>Wild ${cap(enemy.name)} appeared!</h2>
+    ${sceneHtml(me, enemy)}
     <div class="panel battle">
-      <div class="side"><img src="${enemy.sprite}" alt="${cap(enemy.name)}">
-        <div>${cap(enemy.name)} Lv${enemy.level} ${stTag(enemy.status)} <small>${typesText(enemy)}</small></div>
-        ${hpBar(enemy.curHp, enemy.maxHp)}<small>${enemy.curHp}/${enemy.maxHp}</small></div>
-      <div class="side"><img src="${me.sprite}" alt="${cap(me.name)}">
-        <div>${cap(me.name)} Lv${me.level} ${stTag(me.status)} <small>${typesText(me)}</small></div>
-        ${hpBar(me.curHp, me.maxHp)}<small>${me.curHp}/${me.maxHp}</small></div>
       <p class="line">${note || "What will you do?"} ${state.caught ? "You already caught a Pokémon on this route." : `Catch chance: about ${chance}%.`}</p>
       <div class="row">
         <button class="primary" id="fight">Fight</button>
@@ -493,13 +527,10 @@ function throwBall(enemy, nodeI, great = false) {
 function playFight(me, foe, title, weaken, xpMult, onDone) {
   const ctx = newBattleCtx(me, foe, weaken, boost());
   let timer = null;
-  const side = (m, id) => `<div class="side"><img src="${m.sprite}" alt="${cap(m.name)}">
-    <div>${cap(m.name)} Lv${m.level} <span id="st-${id}">${stTag(m.status)}</span> <small>${typesText(m)}</small></div><div id="${id}"></div></div>`;
-
   app.innerHTML = `
     <h2>${title}</h2>
+    ${sceneHtml(me, foe)}
     <div class="panel battle">
-      ${side(foe, "bar-e")}${side(me, "bar-p")}
       <p id="line" class="line">Battle start!</p>
       <div id="actions" class="row"></div>
     </div>`;
@@ -542,6 +573,7 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
       if (k >= entries.length) return done();
       line.textContent = entries[k].text;
       draw(entries[k].hp, entries[k].st);
+      fxPlay(entries[k]);
       k++;
       timer = setTimeout(next, 900);
     };
@@ -559,7 +591,7 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
     line.textContent = "Choose a move!";
     const usable = me.moves.some((mv, i) => ctx.pp.p[i] > 0);
     actions.innerHTML = me.moves.map((mv, i) => `<button class="movebtn" data-m="${i}" ${ctx.pp.p[i] > 0 ? "" : "disabled"}>
-        ${mv.label}<br><small>${cap(mv.type)}, ${mv.power ? "power " + mv.power : "status"}, PP ${ctx.pp.p[i]}/${mv.pp}</small></button>`).join("")
+        ${mv.label}<br><small>${typeBadge(mv.type)} ${mv.power ? "power " + mv.power : "status"}, PP ${ctx.pp.p[i]}/${mv.pp}</small></button>`).join("")
       + (usable ? "" : `<button class="movebtn" data-m="-1">Struggle</button>`)
       + `<button id="bagb">Bag</button><button id="auto">Auto the rest</button>`;
     actions.querySelectorAll("[data-m]").forEach(btn => btn.addEventListener("click", () => {
