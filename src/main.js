@@ -1,14 +1,14 @@
 // Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
 const app = document.getElementById("app");
-const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, money: 500, items: { potion: 3 }, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, money: 500, items: { potion: 3 }, dex: {}, starterName: null, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
 // ---------- Saving ----------
 const SAVE_KEY = "kq:save";
 function saveGame() {
   try {
-    const { party, box, badges, difficulty, manual, money, items, caught, balls, routeIndex, nodeIndex } = state;
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, money, items, caught, balls, routeIndex, nodeIndex }));
+    const { party, box, badges, difficulty, manual, money, items, dex, starterName, caught, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, money, items, dex, starterName, caught, balls, routeIndex, nodeIndex }));
   } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
 }
 function loadSave() {
@@ -41,12 +41,25 @@ function monCard(m) {
   return `<div class="mon ${m.curHp <= 0 ? "fainted" : ""}"><img src="${m.sprite}" alt="${cap(m.name)}">
     <div>${cap(m.name)} Lv${m.level} ${stTag(m.status)}</div>${hpBar(m.curHp, m.maxHp)}<div>${m.curHp}/${m.maxHp}</div></div>`;
 }
+// ---------- Pokédex ----------
+function dexSee(p) {
+  if (!state.dex[p.name]) state.dex[p.name] = { id: p.id, name: p.name, types: p.types, sprite: p.sprite, caught: false };
+}
+function dexCatch(p) { dexSee(p); state.dex[p.name].caught = true; }
+
 async function newBattler(name, level) {
   const b = makeBattler(await getPokemon(name), level);
   await refreshMoves(b);
+  dexSee(b);
   return b;
 }
-const makeFoes = team => Promise.all(team.map(([n, l]) => newBattler(n, l + levelBonus())));
+// "$rival" in a team means: whichever starter beats yours, evolved to match the level.
+function rivalSpecies(level) {
+  let n = RIVAL_STARTER[state.starterName] || "charmander";
+  while (EVOLUTIONS[n] && level >= EVOLUTIONS[n][0]) n = EVOLUTIONS[n][1];
+  return n;
+}
+const makeFoes = team => Promise.all(team.map(([n, l]) => newBattler(n === "$rival" ? rivalSpecies(l + levelBonus()) : n, l + levelBonus())));
 
 // ---------- XP and evolution ----------
 async function evolveIfReady(m) {
@@ -59,6 +72,7 @@ async function evolveIfReady(m) {
       const old = m.name, oldMax = m.maxHp;
       Object.assign(m, base, calcStats(base, m.level));
       m.curHp = Math.min(m.maxHp, m.curHp + (m.maxHp - oldMax));
+      dexCatch(m);
       msg += ` ${cap(old)} evolved into ${cap(m.name)}!`;
     } catch (err) { break; }
   }
@@ -103,6 +117,12 @@ function showTitle() {
   document.getElementById("cont").addEventListener("click", async () => {
     state = Object.assign(freshState(), s, { message: "" });
     app.innerHTML = `<p>Loading...</p>`;
+    for (const p of [...state.party, ...state.box]) dexCatch(p);
+    if (!state.starterName) {
+      const names = state.party.map(p => p.name);
+      const line = STARTER_LINES.find(l => l.some(n => names.includes(n)));
+      state.starterName = line ? line[0] : "squirtle";
+    }
     try {
       for (const p of [...state.party, ...state.box]) {
         if (p.moves && p.moves.length && p.moves.every(x => x.ailment !== undefined)) continue;
@@ -150,6 +170,8 @@ async function showStarters() {
         const starter = makeBattler(mons.find(m => m.name === btn.dataset.name), 5);
         await refreshMoves(starter);
         state.party = [starter];
+        state.starterName = starter.name;
+        dexCatch(starter);
         showRoute();
       }));
   } catch (err) {
@@ -178,6 +200,7 @@ function showRoute() {
     <div class="party">${state.party.map(monCard).join("")}</div>
     <p class="row"><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button>
     <button id="bag">Bag</button>
+    <button id="dex">Pokédex (${Object.keys(state.dex).length} seen)</button>
     <button id="mode">Battles: ${state.manual ? "Manual" : "Auto"} (tap to switch)</button></p>
     <ul class="path">${nodes}</ul>
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
@@ -189,6 +212,7 @@ function showRoute() {
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
   document.getElementById("manage").addEventListener("click", showParty);
   document.getElementById("bag").addEventListener("click", () => showBag(showRoute));
+  document.getElementById("dex").addEventListener("click", () => showDex(showRoute));
   document.getElementById("mode").addEventListener("click", () => { state.manual = !state.manual; showRoute(); });
   const travel = document.getElementById("travel");
   if (travel) travel.addEventListener("click", () => {
@@ -210,12 +234,14 @@ async function playNode(i) {
     if (node.type === "shop") return showShop(i);
     if (node.type === "gift") {
       const g = await newBattler(node.mon, node.level);
+      dexCatch(g);
       const full = state.party.length >= 6;
       (full ? state.box : state.party).push(g);
       state.message = `<p>The hiker gave you ${cap(g.name)} (Lv${g.level})! It's a Grass type, which is strong against Rock Pokémon. ${full ? "Your party was full, so it went to your box." : ""}</p>`;
       state.nodeIndex = i + 1;
       return showRoute();
     }
+    if (node.type === "rival") return showRivalIntro(node, await makeFoes(node.team), i);
     if (node.type === "trainer") return runTrainer(node, await makeFoes(node.team), i, "");
     if (node.type === "gym") return showGymIntro(node, await makeFoes(node.team), i);
   } catch (err) {
@@ -236,6 +262,20 @@ async function playNode(i) {
   }
   state.nodeIndex = i + 1;
   showRoute();
+}
+
+function showDex(back) {
+  const entries = Object.values(state.dex).sort((a, b) => a.id - b.id);
+  const caught = entries.filter(e => e.caught).length;
+  app.innerHTML = `
+    <h2>Pokédex</h2>
+    <p class="stats">Seen: ${entries.length} &nbsp; Caught: ${caught} &nbsp; of 151</p>
+    ${entries.length ? `<div class="dexgrid">${entries.map(e => `<div class="mon ${e.caught ? "" : "seenonly"}">
+      <img src="${e.sprite}" alt="${cap(e.name)}"><div>#${String(e.id).padStart(3, "0")}</div><div>${cap(e.name)}</div>
+      <small>${e.types.map(cap).join(" / ")}</small><small>${e.caught ? "Caught" : "Seen"}</small></div>`).join("")}</div>`
+      : "<p>You haven't seen any Pokémon yet.</p>"}
+    <p></p><button class="primary" id="dexback">Back</button>`;
+  document.getElementById("dexback").addEventListener("click", back);
 }
 
 // ---------- Bag and shop ----------
@@ -338,6 +378,14 @@ function showParty() {
 }
 
 // ---------- Gym and trainers ----------
+function showRivalIntro(node, foes, nodeI) {
+  app.innerHTML = `
+    <h2>${node.name}</h2>
+    <div class="panel"><p>${node.taunt}</p></div>
+    <p></p><button class="primary" id="go">Fight!</button>`;
+  document.getElementById("go").addEventListener("click", () => runTrainer(node, foes, nodeI, ""));
+}
+
 function showGymIntro(node, foes, nodeI) {
   app.innerHTML = `
     <h2>${node.leader}'s Gym</h2>
@@ -358,7 +406,7 @@ function runTrainer(node, foes, nodeI, log) {
   const who = node.name || node.leader;
   if (!foe) {
     state.nodeIndex = nodeI + 1;
-    const prize = Math.max(...foes.map(f => f.level)) * (node.badge ? 60 : 15);
+    const prize = Math.max(...foes.map(f => f.level)) * (node.badge ? 60 : node.type === "rival" ? 40 : 15);
     state.money += prize;
     let msg = `<p>You defeated ${who} and won ₽${prize}!</p>`;
     if (node.badge) {
@@ -429,6 +477,7 @@ function throwBall(enemy, nodeI, great = false) {
   if (Math.random() < catchChance(enemy, great ? ITEMS.greatball.ball : 1)) {
     enemy.xp = 0;
     enemy.status = null;
+    dexCatch(enemy);
     state.caught = true;
     let where = "added to your party";
     if (state.party.length < 6) state.party.push(enemy);
