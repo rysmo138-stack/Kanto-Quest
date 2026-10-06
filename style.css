@@ -134,3 +134,61 @@ button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
   .spr.you { width: 120px; height: 120px; }
   .infobox { font-size: 13px; padding: 4px 6px; }
 }
+
+/* Party cards */
+.party { display: flex; flex-wrap: wrap; gap: 10px; }
+.pcard { width: 118px; padding: 6px 8px 8px; background: var(--paper); border: 3px solid var(--ink); border-top: 9px solid var(--tc, var(--ink));
+  box-shadow: 3px 3px 0 var(--ink); font-size: 14px; line-height: 1.3; text-align: center; }
+.pcard img { width: 72px; height: 72px; image-rendering: pixelated; }
+.pcard .pname { font-weight: 700; }
+.pcard small { display: block; }
+.pcard.fainted { opacity: .45; }
+.bt-normal { --tc: #a8a77a; } .bt-fire { --tc: #ee8130; } .bt-water { --tc: #6390f0; } .bt-grass { --tc: #7ac74c; }
+.bt-electric { --tc: #f7d02c; } .bt-ice { --tc: #96d9d6; } .bt-fighting { --tc: #c22e28; } .bt-poison { --tc: #a33ea1; }
+.bt-ground { --tc: #e2bf65; } .bt-flying { --tc: #a98ff3; } .bt-psychic { --tc: #f95587; } .bt-bug { --tc: #a6b91a; }
+.bt-rock { --tc: #b6a136; } .bt-ghost { --tc: #735797; } .bt-dragon { --tc: #6f35fc; } .bt-dark { --tc: #705746; }
+.bt-steel { --tc: #b7b7ce; } .bt-fairy { --tc: #d685ad; }
+
+/* Route map */
+.map { margin: 24px 0 20px; }
+.maprow { position: relative; display: flex; margin-bottom: 30px; min-height: 96px; }
+.maprow.rev { flex-direction: row-reverse; }
+.maprow::before { content: ""; position: absolute; top: 31px; height: 4px; background: var(--ink);
+  left: 11.5%; width: calc((var(--n) - 1) * 25.667%); }
+.maprow.rev::before { left: auto; right: 11.5%; }
+.maprow.more::after { content: ""; position: absolute; top: 31px; width: 4px; height: 126px; background: var(--ink); right: calc(11.5% - 2px); }
+.maprow.rev.more::after { right: auto; left: calc(11.5% - 2px); }
+.mapnode { position: relative; z-index: 1; width: 23%; margin-right: 2.667%; padding: 0; background: none; border: 0; box-shadow: none; text-align: center; font-size: 13px; line-height: 1.2; }
+.maprow.rev .mapnode { margin-right: 0; margin-left: 2.667%; }
+.mapnode:nth-child(4) { margin: 0; }
+.mapnode:hover, .mapnode:active { background: none; transform: none; box-shadow: none; }
+.mapnode .icon { display: flex; width: 62px; height: 62px; margin: 0 auto 4px; border-radius: 50%; align-items: center; justify-content: center;
+  font-size: 28px; background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.mapnode .lbl { display: block; overflow-wrap: anywhere; }
+.n-wild .icon { background: #d7ecb3; } .n-trainer .icon { background: #f2c8c0; } .n-rival .icon { background: #e2c8f0; }
+.n-gym .icon { background: #f7e08a; } .n-shop .icon { background: #c8def2; } .n-heal .icon { background: #f9d4e0; }
+.n-item .icon { background: #efe0c0; } .n-gift .icon { background: #f9e6b0; } .n-end .icon { background: #e6e6e6; }
+.mapnode.locked { opacity: .5; cursor: not-allowed; }
+.mapnode.done .icon { background: var(--lcd-dark); opacity: .7; }
+.mapnode.done .icon::after { content: "✔"; position: absolute; top: 40px; left: calc(50% + 10px); font-size: 16px; background: var(--paper);
+  border: 2px solid var(--ink); border-radius: 50%; width: 22px; height: 22px; line-height: 18px; }
+.mapnode.current .icon { border-color: var(--ball); box-shadow: 0 0 0 4px var(--ball); }
+.mapnode .marker { position: absolute; width: 44px; height: 44px; left: 50%; top: -34px; transform: translateX(-50%); image-rendering: pixelated; z-index: 2; }
+.mapnode:focus-visible .icon { outline: 3px solid var(--ink); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .mapnode.current .icon { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(194, 65, 45, .35); } }
+}
+@media (max-width: 420px) {
+  .mapnode { font-size: 11px; }
+  .mapnode .icon { width: 52px; height: 52px; font-size: 24px; }
+  .maprow::before, .maprow.more::after { top: 26px; }
+  .maprow.more::after { height: 116px; }
+  .pcard { width: calc(50% - 6px); }
+}
+
+/* Fixed row height keeps the connecting lines lined up */
+.maprow { height: 100px; min-height: 0; }
+.maprow.more::after, .maprow.more::after { height: 130px; }
+.mapnode .lbl { max-height: 2.5em; overflow: hidden; }
+@media (max-width: 420px) { .maprow.more::after { height: 130px; } }
