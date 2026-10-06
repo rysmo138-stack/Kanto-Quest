@@ -85,3 +85,7 @@ button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .st-paralysis { background: #b8901a; color: var(--ink); }
 .st-sleep { background: #5a6b7a; }
 .st-freeze { background: #3a8fb7; }
+
+/* Bag and shop */
+.bagrow { border-bottom: 2px dashed var(--lcd-dark); padding: 8px 0; margin-bottom: 4px; }
+.bagrow small { display: block; margin: 2px 0 6px; }
