@@ -7,7 +7,7 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const typesText = m => m.types.map(cap).join(" / ");
 const lead = () => state.party.find(m => m.curHp > 0);
-const boost = () => (state.badges.length ? 1.1 : 1);
+const boost = () => 1 + 0.1 * state.badges.length;
 
 function hpBar(cur, max) {
   const pct = Math.max(0, Math.round((cur / max) * 100));
@@ -104,7 +104,7 @@ function showRoute() {
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
     ${finished ? (next
       ? `<p></p><button class="primary" id="travel">Travel to ${next.name}</button>`
-      : `<p></p><div class="panel"><p>That's everything built so far. Mt. Moon and Misty come next!</p></div>`) : ""}`;
+      : `<p></p><div class="panel"><p>That's everything built so far. Lt. Surge and Vermilion City come next!</p></div>`) : ""}`;
 
   app.querySelectorAll(".node:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
