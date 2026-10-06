@@ -104,7 +104,7 @@ function showRoute() {
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
     ${finished ? (next
       ? `<p></p><button class="primary" id="travel">Travel to ${next.name}</button>`
-      : `<p></p><div class="panel"><p>That's everything built so far. Lt. Surge and Vermilion City come next!</p></div>`) : ""}`;
+      : `<p></p><div class="panel"><p>That's everything built so far. Route 9, Rock Tunnel, and Erika in Celadon City come next!</p></div>`) : ""}`;
 
   app.querySelectorAll(".node:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
