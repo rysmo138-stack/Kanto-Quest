@@ -177,7 +177,11 @@ function runTrainer(node, foes, nodeI, log) {
   if (!foe) {
     state.nodeIndex = nodeI + 1;
     let msg = `<p>You defeated ${who}!</p>`;
-    if (node.badge) { state.badges.push(node.badge); msg = `<p>You defeated ${who} and earned the ${node.badge}! ${BADGE_PERK}</p>`; }
+    if (node.badge) {
+      state.badges.push(node.badge);
+      state.party.forEach(p => { p.curHp = p.maxHp; });
+      msg = `<p>You defeated ${who} and earned the ${node.badge}! ${BADGE_PERK} Your whole party was healed to full health.</p>`;
+    }
     state.message = msg + (log ? `<p>${log}</p>` : "");
     return showRoute();
   }
