@@ -1,14 +1,14 @@
 // Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
 const app = document.getElementById("app");
-const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, money: 500, items: { potion: 3 }, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
 // ---------- Saving ----------
 const SAVE_KEY = "kq:save";
 function saveGame() {
   try {
-    const { party, box, badges, difficulty, manual, caught, balls, routeIndex, nodeIndex } = state;
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, caught, balls, routeIndex, nodeIndex }));
+    const { party, box, badges, difficulty, manual, money, items, caught, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, money, items, caught, balls, routeIndex, nodeIndex }));
   } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
 }
 function loadSave() {
@@ -174,9 +174,10 @@ function showRoute() {
   app.innerHTML = `
     <h2>${route.name}</h2>
     <p>${route.blurb}</p>
-    <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
+    <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
     <div class="party">${state.party.map(monCard).join("")}</div>
     <p class="row"><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button>
+    <button id="bag">Bag</button>
     <button id="mode">Battles: ${state.manual ? "Manual" : "Auto"} (tap to switch)</button></p>
     <ul class="path">${nodes}</ul>
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
@@ -187,6 +188,7 @@ function showRoute() {
   app.querySelectorAll(".node:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
   document.getElementById("manage").addEventListener("click", showParty);
+  document.getElementById("bag").addEventListener("click", () => showBag(showRoute));
   document.getElementById("mode").addEventListener("click", () => { state.manual = !state.manual; showRoute(); });
   const travel = document.getElementById("travel");
   if (travel) travel.addEventListener("click", () => {
@@ -205,6 +207,7 @@ async function playNode(i) {
       const enemy = await newBattler(pick(route.wild), randInt(lo, hi) + levelBonus());
       return showEncounter(enemy, i);
     }
+    if (node.type === "shop") return showShop(i);
     if (node.type === "gift") {
       const g = await newBattler(node.mon, node.level);
       const full = state.party.length >= 6;
@@ -223,8 +226,8 @@ async function playNode(i) {
     state.balls += node.amount;
     state.message = `<p>You found ${node.amount} Poké Balls! You now have ${state.balls}.</p>`;
   } else if (node.type === "item") {
-    state.party.forEach(m => { if (m.curHp > 0) m.curHp = Math.min(m.maxHp, m.curHp + 20); });
-    state.message = `<p>You found a Potion and used it. Your healthy Pokémon restored 20 HP.</p>`;
+    state.items.potion = (state.items.potion || 0) + 1;
+    state.message = `<p>You found a Potion and put it in your Bag. You have ${state.items.potion}.</p>`;
   } else if (node.type === "heal") {
     state.party.forEach(m => { m.curHp = m.maxHp; restoreAll(m); });
     state.message = `<p>Your whole party is back to full health, and their moves and status are restored.</p>`;
@@ -233,6 +236,75 @@ async function playNode(i) {
   }
   state.nodeIndex = i + 1;
   showRoute();
+}
+
+// ---------- Bag and shop ----------
+const bagItems = () => Object.entries(state.items).filter(([k, n]) => n > 0 && ITEMS[k] && !ITEMS[k].ball);
+const curesStatus = (it, status) => status && it.cure && (it.cure === "all" || it.cure.includes(status));
+
+function itemUsable(key, mon) {
+  const it = ITEMS[key];
+  if (it.revive) return mon.curHp <= 0;
+  if (mon.curHp <= 0) return false;
+  return (it.heal && mon.curHp < mon.maxHp) || curesStatus(it, mon.status);
+}
+function useItem(key, mon) {
+  const it = ITEMS[key];
+  state.items[key]--;
+  if (it.revive) {
+    mon.curHp = Math.max(1, Math.floor(mon.maxHp * it.revive));
+    mon.status = null;
+    return `${cap(mon.name)} was revived!`;
+  }
+  const parts = [];
+  if (it.heal && mon.curHp < mon.maxHp) {
+    const h = Math.min(it.heal, mon.maxHp - mon.curHp);
+    mon.curHp += h;
+    parts.push(`restored ${h} HP`);
+  }
+  if (curesStatus(it, mon.status)) { parts.push(`was cured of ${mon.status}`); mon.status = null; }
+  return `${cap(mon.name)} ${parts.join(" and ")}.`;
+}
+
+function showBag(back, note = "") {
+  const list = bagItems();
+  app.innerHTML = `
+    <h2>Bag</h2>
+    <p class="stats">Money: ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Great Balls: ${state.items.greatball || 0}</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    ${list.length ? list.map(([k, n]) => `<div class="bagrow"><strong>${ITEMS[k].name}</strong> x${n} <small>${ITEMS[k].desc}</small>
+      <div class="row">${state.party.map((p, i) => `<button data-k="${k}" data-i="${i}" ${itemUsable(k, p) ? "" : "disabled"}>${cap(p.name)} ${p.curHp}/${p.maxHp}${p.status ? " " + STATUS_TAGS[p.status] : ""}</button>`).join("")}</div></div>`).join("")
+      : "<p>You have no usable items.</p>"}
+    <p></p><button class="primary" id="bagback">Back</button>`;
+  app.querySelectorAll("button[data-k]").forEach(btn => btn.addEventListener("click", () => {
+    const msg = useItem(btn.dataset.k, state.party[Number(btn.dataset.i)]);
+    saveGame();
+    showBag(back, msg);
+  }));
+  document.getElementById("bagback").addEventListener("click", back);
+}
+
+function showShop(nodeI, note = "") {
+  const owned = k => (k === "pokeball" ? state.balls : state.items[k] || 0);
+  app.innerHTML = `
+    <h2>Poké Mart</h2>
+    <p class="stats">Money: ₽${state.money}</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    ${SHOP_STOCK.map(k => `<div class="bagrow"><strong>${ITEMS[k].name}</strong> ₽${ITEMS[k].price} <small>${ITEMS[k].desc} You have ${owned(k)}.</small>
+      <div><button data-buy="${k}" ${state.money >= ITEMS[k].price ? "" : "disabled"}>Buy</button></div></div>`).join("")}
+    <p></p><button class="primary" id="leave">Leave</button>`;
+  app.querySelectorAll("button[data-buy]").forEach(btn => btn.addEventListener("click", () => {
+    const k = btn.dataset.buy;
+    state.money -= ITEMS[k].price;
+    if (k === "pokeball") state.balls++; else state.items[k] = (state.items[k] || 0) + 1;
+    saveGame();
+    showShop(nodeI, `Bought a ${ITEMS[k].name}.`);
+  }));
+  document.getElementById("leave").addEventListener("click", () => {
+    state.nodeIndex = nodeI + 1;
+    state.message = `<p>You left the Poké Mart.</p>`;
+    showRoute();
+  });
 }
 
 // ---------- Party management ----------
@@ -286,11 +358,13 @@ function runTrainer(node, foes, nodeI, log) {
   const who = node.name || node.leader;
   if (!foe) {
     state.nodeIndex = nodeI + 1;
-    let msg = `<p>You defeated ${who}!</p>`;
+    const prize = Math.max(...foes.map(f => f.level)) * (node.badge ? 60 : 15);
+    state.money += prize;
+    let msg = `<p>You defeated ${who} and won ₽${prize}!</p>`;
     if (node.badge) {
       state.badges.push(node.badge);
       state.party.forEach(p => { p.curHp = p.maxHp; restoreAll(p); });
-      msg = `<p>You defeated ${who} and earned the ${node.badge}! ${BADGE_PERK} Your whole party was healed to full health.</p>`;
+      msg = `<p>You defeated ${who} and earned the ${node.badge} and ₽${prize}! ${BADGE_PERK} Your whole party was healed to full health.</p>`;
     }
     state.message = msg + (log ? `<p>${log}</p>` : "");
     return showRoute();
@@ -321,6 +395,8 @@ function showEncounter(enemy, nodeI, note = "") {
         <button class="primary" id="fight">Fight</button>
         <button id="weaken" ${weak ? "disabled" : ""}>Weaken</button>
         <button id="ball" ${state.balls && !state.caught ? "" : "disabled"}>${state.caught ? "Already caught one here" : `Throw Poké Ball (${state.balls})`}</button>
+        ${state.items.greatball && !state.caught ? `<button id="great">Throw Great Ball (${state.items.greatball})</button>` : ""}
+        <button id="bag">Bag</button>
         <button id="run">Run</button>
       </div>
     </div>`;
@@ -337,7 +413,10 @@ function showEncounter(enemy, nodeI, note = "") {
   });
   document.getElementById("fight").addEventListener("click", () => wildFight(false));
   document.getElementById("weaken").addEventListener("click", () => wildFight(true));
-  document.getElementById("ball").addEventListener("click", () => throwBall(enemy, nodeI));
+  document.getElementById("ball").addEventListener("click", () => throwBall(enemy, nodeI, false));
+  const great = document.getElementById("great");
+  if (great) great.addEventListener("click", () => throwBall(enemy, nodeI, true));
+  document.getElementById("bag").addEventListener("click", () => showBag(() => showEncounter(enemy, nodeI, note)));
   document.getElementById("run").addEventListener("click", () => {
     state.nodeIndex = nodeI + 1;
     state.message = `<p>You got away from the wild ${cap(enemy.name)}.</p>`;
@@ -345,9 +424,9 @@ function showEncounter(enemy, nodeI, note = "") {
   });
 }
 
-function throwBall(enemy, nodeI) {
-  state.balls--;
-  if (Math.random() < catchChance(enemy)) {
+function throwBall(enemy, nodeI, great = false) {
+  if (great) state.items.greatball--; else state.balls--;
+  if (Math.random() < catchChance(enemy, great ? ITEMS.greatball.ball : 1)) {
     enemy.xp = 0;
     enemy.status = null;
     state.caught = true;
@@ -433,13 +512,32 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
     actions.innerHTML = me.moves.map((mv, i) => `<button class="movebtn" data-m="${i}" ${ctx.pp.p[i] > 0 ? "" : "disabled"}>
         ${mv.label}<br><small>${cap(mv.type)}, ${mv.power ? "power " + mv.power : "status"}, PP ${ctx.pp.p[i]}/${mv.pp}</small></button>`).join("")
       + (usable ? "" : `<button class="movebtn" data-m="-1">Struggle</button>`)
-      + `<button id="auto">Auto the rest</button>`;
+      + `<button id="bagb">Bag</button><button id="auto">Auto the rest</button>`;
     actions.querySelectorAll("[data-m]").forEach(btn => btn.addEventListener("click", () => {
       actions.innerHTML = "";
       const entries = playRound(ctx, Number(btn.dataset.m) >= 0 ? Number(btn.dataset.m) : null);
       play(entries, () => (ctx.over ? finish() : showMoves()));
     }));
     document.getElementById("auto").addEventListener("click", autoRest);
+    document.getElementById("bagb").addEventListener("click", () => {
+      const usable = bagItems().filter(([k]) => !ITEMS[k].revive
+        && ((ITEMS[k].heal && ctx.hp.p < me.maxHp) || curesStatus(ITEMS[k], me.status)));
+      line.textContent = usable.length ? "Use which item? It costs your turn." : "Nothing in your Bag helps right now.";
+      actions.innerHTML = usable.map(([k, n]) => `<button data-item="${k}">${ITEMS[k].name} x${n}</button>`).join("")
+        + `<button id="itemback">Back</button>`;
+      document.getElementById("itemback").addEventListener("click", showMoves);
+      actions.querySelectorAll("[data-item]").forEach(btn => btn.addEventListener("click", () => {
+        const k = btn.dataset.item, it = ITEMS[k];
+        actions.innerHTML = "";
+        const entries = playRound(ctx, null, (c, say) => {
+          state.items[k]--;
+          if (it.heal) c.hp.p = Math.min(me.maxHp, c.hp.p + it.heal);
+          if (curesStatus(it, me.status)) me.status = null;
+          say(`You used a ${it.name} on ${cap(me.name)}.`);
+        });
+        play(entries, () => (ctx.over ? finish() : showMoves()));
+      }));
+    });
   };
 
   if (state.manual) showMoves();
