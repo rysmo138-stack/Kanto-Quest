@@ -97,6 +97,10 @@ const EVOLUTIONS = {
   koffing: [35, "weezing"], magnemite: [30, "magneton"], voltorb: [30, "electrode"]
 };
 
+// Your rival always picks the starter that beats yours.
+const RIVAL_STARTER = { bulbasaur: "charmander", charmander: "squirtle", squirtle: "bulbasaur" };
+const STARTER_LINES = [["bulbasaur", "ivysaur", "venusaur"], ["charmander", "charmeleon", "charizard"], ["squirtle", "wartortle", "blastoise"]];
+
 const BADGE_PERK = "Your Pokémon deal 10% more damage (stacks with each badge).";
 
 // Node types: wild, trainer, item, heal, gym, end.
@@ -128,6 +132,10 @@ const ROUTES = [
       { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
       { type: "wild", label: "Wild encounter" },
       { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest at the forest gate" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: Hey, you made it this far? I've been training too. Let's see who's stronger!",
+        team: [["$rival", 8], ["pidgey", 7], ["rattata", 7]] },
       { type: "end", label: "Viridian Forest entrance" }
     ]
   },
@@ -244,6 +252,9 @@ const ROUTES = [
       { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
       { type: "wild", label: "Wild encounter" },
       { type: "heal", label: "Rest on the bridge" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: Smell ya later? Not yet! You won the Cascade Badge, so I want a battle!",
+        team: [["$rival", 15], ["pidgey", 14], ["abra", 14], ["rattata", 13]] },
       { type: "end", label: "Route 25" }
     ]
   },
@@ -296,6 +307,9 @@ const ROUTES = [
       { type: "trainer", name: "Fisherman Barney", label: "Trainer: Fisherman Barney",
         team: [["goldeen", 16], ["tentacool", 16]] },
       { type: "heal", label: "Ship's cabin" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: Well, well. Even on a fancy cruise ship I can't get away from you. Ready?",
+        team: [["$rival", 19], ["pidgeotto", 17], ["kadabra", 17], ["rattata", 16]] },
       { type: "trainer", name: "Sailor Edmond", label: "Trainer: Sailor Edmond",
         team: [["shellder", 17], ["machop", 17]] },
       { type: "end", label: "Vermilion City" }
@@ -359,6 +373,9 @@ const ROUTES = [
     nodes: [
       { type: "heal", label: "Pokémon Center" },
       { type: "shop", label: "Poké Mart" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: This tower is creepy, but I'm not scared. Show me how strong you've gotten!",
+        team: [["$rival", 20], ["pidgeotto", 18], ["kadabra", 18], ["growlithe", 18]] },
       { type: "wild", label: "Wild encounter" },
       { type: "trainer", name: "Channeler Hope", label: "Trainer: Channeler Hope",
         team: [["gastly", 18], ["gastly", 18]] },
@@ -414,4 +431,4 @@ const ITEMS = {
 };
 const SHOP_STOCK = ["pokeball", "greatball", "potion", "superpotion", "hyperpotion", "antidote", "fullheal", "revive"];
 
-const NODE_ICONS = { shop: "🏪", wild: "🌿", trainer: "⚔️", item: "🎒", heal: "💊", gym: "🏅", gift: "🎁", end: "🏁" };
+const NODE_ICONS = { rival: "🆚", shop: "🏪", wild: "🌿", trainer: "⚔️", item: "🎒", heal: "💊", gym: "🏅", gift: "🎁", end: "🏁" };
