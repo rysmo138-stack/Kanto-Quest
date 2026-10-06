@@ -37,10 +37,12 @@ const EVOLUTIONS = {
   caterpie: [7, "metapod"], metapod: [10, "butterfree"],
   weedle: [7, "kakuna"], kakuna: [10, "beedrill"],
   pidgey: [18, "pidgeotto"], pidgeotto: [36, "pidgeot"],
-  rattata: [20, "raticate"], geodude: [25, "graveler"]
+  rattata: [20, "raticate"], geodude: [25, "graveler"],
+  oddish: [21, "gloom"], zubat: [22, "golbat"], paras: [24, "parasect"],
+  spearow: [20, "fearow"], ekans: [22, "arbok"], sandshrew: [22, "sandslash"]
 };
 
-const BADGE_PERK = "Your Pokémon deal 10% more damage.";
+const BADGE_PERK = "Your Pokémon deal 10% more damage (stacks with each badge).";
 
 // Node types: wild, trainer, item, heal, gym, end.
 const ROUTES = [
@@ -102,7 +104,71 @@ const ROUTES = [
       { type: "heal", label: "Pokémon Center" },
       { type: "gym", leader: "Brock", badge: "Boulder Badge", label: "Gym: Brock",
         team: [["geodude", 11], ["onix", 13]] },
-      { type: "end", label: "Cerulean City is next" }
+      { type: "end", label: "Route 3 is next" }
+    ]
+  },
+  {
+    id: "route-3", name: "Route 3",
+    blurb: "A rocky trail east of Pewter City, full of trainers heading to Mt. Moon.",
+    wild: ["pidgey", "spearow", "rattata", "ekans", "jigglypuff"],
+    levels: [7, 10],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Youngster Ben", label: "Trainer: Youngster Ben",
+        team: [["rattata", 9], ["ekans", 9]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Lass Janice", label: "Trainer: Lass Janice",
+        team: [["pidgey", 9], ["pidgey", 10]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Pokémon Center at Mt. Moon" },
+      { type: "end", label: "Mt. Moon entrance" }
+    ]
+  },
+  {
+    id: "mt-moon", name: "Mt. Moon",
+    blurb: "A dark cave. Zubat swarm the tunnels, and strange Pokémon hide in the shadows.",
+    wild: ["zubat", "zubat", "zubat", "geodude", "paras", "clefairy"],
+    levels: [8, 12],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Marcos", label: "Trainer: Hiker Marcos",
+        team: [["geodude", 10], ["geodude", 11]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Super Nerd Miguel", label: "Trainer: Super Nerd Miguel",
+        team: [["rattata", 12], ["zubat", 12]] },
+      { type: "item", item: "ball", amount: 2, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest in the cave" },
+      { type: "end", label: "Route 4" }
+    ]
+  },
+  {
+    id: "route-4", name: "Route 4",
+    blurb: "The ledge-lined road out of Mt. Moon, leading down to Cerulean City.",
+    wild: ["rattata", "spearow", "ekans", "sandshrew"],
+    levels: [10, 13],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Lass Crissy", label: "Trainer: Lass Crissy",
+        team: [["rattata", 12], ["sandshrew", 12]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "end", label: "Cerulean City" }
+    ]
+  },
+  {
+    id: "cerulean-city", name: "Cerulean City",
+    blurb: "A seaside city. Its gym leader specializes in Water Pokémon, which are weak to Grass and Electric.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "gym", leader: "Misty", badge: "Cascade Badge", label: "Gym: Misty",
+        team: [["staryu", 11], ["starmie", 13]] },
+      { type: "end", label: "Vermilion City is next" }
     ]
   }
 ];
