@@ -1,14 +1,14 @@
 // Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
 const app = document.getElementById("app");
-const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
 // ---------- Saving ----------
 const SAVE_KEY = "kq:save";
 function saveGame() {
   try {
-    const { party, box, badges, difficulty, caught, balls, routeIndex, nodeIndex } = state;
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, caught, balls, routeIndex, nodeIndex }));
+    const { party, box, badges, difficulty, manual, caught, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, caught, balls, routeIndex, nodeIndex }));
   } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
 }
 function loadSave() {
@@ -173,7 +173,8 @@ function showRoute() {
     <p>${route.blurb}</p>
     <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
     <div class="party">${state.party.map(monCard).join("")}</div>
-    <p><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button></p>
+    <p class="row"><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button>
+    <button id="mode">Battles: ${state.manual ? "Manual" : "Auto"} (tap to switch)</button></p>
     <ul class="path">${nodes}</ul>
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
     ${finished ? (next
@@ -183,6 +184,7 @@ function showRoute() {
   app.querySelectorAll(".node:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
   document.getElementById("manage").addEventListener("click", showParty);
+  document.getElementById("mode").addEventListener("click", () => { state.manual = !state.manual; showRoute(); });
   const travel = document.getElementById("travel");
   if (travel) travel.addEventListener("click", () => {
     state.routeIndex++; state.nodeIndex = 0; state.caught = false; state.message = ""; showRoute();
@@ -357,8 +359,8 @@ function throwBall(enemy, nodeI) {
 
 // ---------- Fight playback (used by wild, trainer, and gym battles) ----------
 function playFight(me, foe, title, weaken, xpMult, onDone) {
-  const result = simulate(me, foe, weaken, boost());
-  let step = -1, timer = null;
+  const ctx = newBattleCtx(me, foe, weaken, boost());
+  let timer = null;
   const side = (m, id) => `<div class="side"><img src="${m.sprite}" alt="${cap(m.name)}">
     <div>${cap(m.name)} Lv${m.level} <small>${typesText(m)}</small></div><div id="${id}"></div></div>`;
 
@@ -367,7 +369,7 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
     <div class="panel battle">
       ${side(foe, "bar-e")}${side(me, "bar-p")}
       <p id="line" class="line">Battle start!</p>
-      <div id="actions"><button id="skip">Skip</button></div>
+      <div id="actions" class="row"></div>
     </div>`;
   const barE = document.getElementById("bar-e"), barP = document.getElementById("bar-p");
   const line = document.getElementById("line"), actions = document.getElementById("actions");
@@ -375,15 +377,16 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
     barE.innerHTML = hpBar(hp.e, foe.maxHp) + `<small>${hp.e}/${foe.maxHp}</small>`;
     barP.innerHTML = hpBar(hp.p, me.maxHp) + `<small>${hp.p}/${me.maxHp}</small>`;
   };
+  draw(ctx.hp);
   draw({ p: me.curHp, e: foe.curHp });
 
   const finish = () => {
     clearTimeout(timer);
-    draw(result.hp);
-    me.curHp = result.hp.p;
-    foe.curHp = result.hp.e;
-    me.moves.forEach((mv, i) => { mv.curPp = result.pp.p[i]; });
-    foe.moves.forEach((mv, i) => { foe.moves[i].curPp = result.pp.e[i]; });
+    draw(ctx.hp);
+    me.curHp = ctx.hp.p;
+    foe.curHp = ctx.hp.e;
+    me.moves.forEach((mv, i) => { mv.curPp = ctx.pp.p[i]; });
+    foe.moves.forEach((mv, i) => { mv.curPp = ctx.pp.e[i]; });
     const foeDown = foe.curHp <= 0, meDown = me.curHp <= 0;
     line.textContent = foeDown ? `${cap(foe.name)} fainted!` : meDown ? `${cap(me.name)} fainted!` : "The fight paused.";
     actions.innerHTML = `<button class="primary" id="go">Continue</button>`;
@@ -392,15 +395,44 @@ function playFight(me, foe, title, weaken, xpMult, onDone) {
       onDone({ foeDown, meDown, extra });
     });
   };
-  const next = () => {
-    step++;
-    if (step >= result.log.length) return finish();
-    line.textContent = result.log[step].text;
-    draw(result.log[step].hp);
-    timer = setTimeout(next, 900);
+
+  // Shows log entries one at a time, then calls done.
+  const play = (entries, done) => {
+    let k = 0;
+    const next = () => {
+      if (k >= entries.length) return done();
+      line.textContent = entries[k].text;
+      draw(entries[k].hp);
+      k++;
+      timer = setTimeout(next, 900);
+    };
+    next();
   };
-  document.getElementById("skip").addEventListener("click", finish);
-  timer = setTimeout(next, 600);
+  const autoRest = () => {
+    const before = ctx.log.length;
+    while (!ctx.over) playRound(ctx);
+    actions.innerHTML = `<button id="skip">Skip</button>`;
+    document.getElementById("skip").addEventListener("click", finish);
+    play(ctx.log.slice(before), finish);
+  };
+
+  const showMoves = () => {
+    line.textContent = "Choose a move!";
+    const usable = me.moves.some((mv, i) => ctx.pp.p[i] > 0);
+    actions.innerHTML = me.moves.map((mv, i) => `<button class="movebtn" data-m="${i}" ${ctx.pp.p[i] > 0 ? "" : "disabled"}>
+        ${mv.label}<br><small>${cap(mv.type)}, power ${mv.power}, PP ${ctx.pp.p[i]}/${mv.pp}</small></button>`).join("")
+      + (usable ? "" : `<button class="movebtn" data-m="-1">Struggle</button>`)
+      + `<button id="auto">Auto the rest</button>`;
+    actions.querySelectorAll("[data-m]").forEach(btn => btn.addEventListener("click", () => {
+      actions.innerHTML = "";
+      const entries = playRound(ctx, Number(btn.dataset.m) >= 0 ? Number(btn.dataset.m) : null);
+      play(entries, () => (ctx.over ? finish() : showMoves()));
+    }));
+    document.getElementById("auto").addEventListener("click", autoRest);
+  };
+
+  if (state.manual) showMoves();
+  else setTimeout(autoRest, 600);
 }
 
 showTitle();
