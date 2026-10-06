@@ -120,9 +120,9 @@ function pickMove(att, def, pp) {
   return best;
 }
 
-function attackRoll(att, def, pp) {
+function attackRoll(att, def, pp, forced = null) {
   if (!att.moves || !att.moves.length) att.moves = [signatureMove(att.types[0])];
-  const i = pickMove(att, def, pp);
+  const i = (forced != null && pp[forced] > 0) ? forced : pickMove(att, def, pp);
   const mv = i >= 0 ? att.moves[i]
     : { label: "Struggle", type: "normal", power: 50, accuracy: 100, cls: "physical" };
   if (i >= 0) pp[i]--;
@@ -139,38 +139,51 @@ function attackRoll(att, def, pp) {
   return { dmg, mv, eff, crit, miss: false };
 }
 
+// One fight, played round by round. Auto mode and manual mode both use this.
 // weaken = true stops once the wild Pokémon is low (never knocks it out), so it can be caught.
-function simulate(player, enemy, weaken = false, boost = 1) {
+function newBattleCtx(player, enemy, weaken = false, boost = 1) {
   for (const m of [player, enemy]) if (!m.moves || !m.moves.length) m.moves = [signatureMove(m.types[0])];
-  const mons = { p: player, e: enemy };
-  const hp = { p: player.curHp, e: enemy.curHp };
-  const pp = {
-    p: player.moves.map(x => (x.curPp == null ? x.pp : x.curPp)),
-    e: enemy.moves.map(x => (x.curPp == null ? x.pp : x.curPp))
+  return {
+    mons: { p: player, e: enemy },
+    hp: { p: player.curHp, e: enemy.curHp },
+    pp: {
+      p: player.moves.map(x => (x.curPp == null ? x.pp : x.curPp)),
+      e: enemy.moves.map(x => (x.curPp == null ? x.pp : x.curPp))
+    },
+    order: (player.spe > enemy.spe || (player.spe === enemy.spe && Math.random() < 0.5)) ? ["p", "e"] : ["e", "p"],
+    weaken, boost, log: [], over: false, rounds: 0
   };
-  const order = (player.spe > enemy.spe || (player.spe === enemy.spe && Math.random() < 0.5))
-    ? ["p", "e"] : ["e", "p"];
-  const log = [];
+}
 
-  outer: for (let turn = 0; turn < 80 && hp.p > 0 && hp.e > 0; turn++) {
-    for (const s of order) {
-      const o = s === "p" ? "e" : "p";
-      if (hp.p <= 0 || hp.e <= 0) break;
-      const r = attackRoll(mons[s], mons[o], pp[s]);
-      if (s === "p" && r.dmg) r.dmg = Math.max(1, Math.round(r.dmg * boost));
-      hp[o] = Math.max(weaken && o === "e" ? 1 : 0, hp[o] - r.dmg);
-      let text = `${cap(mons[s].name)} used ${r.mv.label}!`;
-      if (r.miss) text += " But it missed!";
-      else if (r.eff === 0) text += " It had no effect.";
-      else if (r.eff > 1) text += " It's super effective!";
-      else if (r.eff < 1) text += " It's not very effective.";
-      if (r.crit && r.dmg) text += " A critical hit!";
-      log.push({ text, hp: { ...hp } });
-      if (hp[o] <= 0) log.push({ text: `${cap(mons[o].name)} fainted!`, hp: { ...hp } });
-      if (weaken && hp.e <= enemy.maxHp * 0.3) break outer;
-    }
+// Plays one round. playerMove is a move index, or null to let the auto-battler choose.
+// Returns just the new log entries from this round.
+function playRound(ctx, playerMove = null) {
+  const start = ctx.log.length;
+  for (const s of ctx.order) {
+    const o = s === "p" ? "e" : "p";
+    if (ctx.hp.p <= 0 || ctx.hp.e <= 0) break;
+    const r = attackRoll(ctx.mons[s], ctx.mons[o], ctx.pp[s], s === "p" ? playerMove : null);
+    if (s === "p" && r.dmg) r.dmg = Math.max(1, Math.round(r.dmg * ctx.boost));
+    ctx.hp[o] = Math.max(ctx.weaken && o === "e" ? 1 : 0, ctx.hp[o] - r.dmg);
+    let text = `${cap(ctx.mons[s].name)} used ${r.mv.label}!`;
+    if (r.miss) text += " But it missed!";
+    else if (r.eff === 0) text += " It had no effect.";
+    else if (r.eff > 1) text += " It's super effective!";
+    else if (r.eff < 1) text += " It's not very effective.";
+    if (r.crit && r.dmg) text += " A critical hit!";
+    ctx.log.push({ text, hp: { ...ctx.hp } });
+    if (ctx.hp[o] <= 0) ctx.log.push({ text: `${cap(ctx.mons[o].name)} fainted!`, hp: { ...ctx.hp } });
+    if (ctx.weaken && ctx.hp.e <= ctx.mons.e.maxHp * 0.3) { ctx.over = true; break; }
   }
-  return { log, winner: hp.p > 0 ? "p" : "e", hp, pp };
+  if (ctx.hp.p <= 0 || ctx.hp.e <= 0 || ++ctx.rounds >= 80) ctx.over = true;
+  return ctx.log.slice(start);
+}
+
+// Plays a whole fight automatically (used by the tests and by auto mode).
+function simulate(player, enemy, weaken = false, boost = 1) {
+  const ctx = newBattleCtx(player, enemy, weaken, boost);
+  while (!ctx.over) playRound(ctx);
+  return { log: ctx.log, winner: ctx.hp.p > 0 ? "p" : "e", hp: ctx.hp, pp: ctx.pp };
 }
 
 // Returns messages about any level-ups.
