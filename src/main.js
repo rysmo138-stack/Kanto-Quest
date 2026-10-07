@@ -1,14 +1,14 @@
 // Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
 const app = document.getElementById("app");
-const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, money: 500, items: { potion: 3 }, dex: {}, starterName: null, caught: false, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, money: 500, items: { potion: 3 }, dex: {}, starterName: null, progress: {}, caughtRoutes: {}, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
 let state = freshState();
 
 // ---------- Saving ----------
 const SAVE_KEY = "kq:save";
 function saveGame() {
   try {
-    const { party, box, badges, difficulty, manual, money, items, dex, starterName, caught, balls, routeIndex, nodeIndex } = state;
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, money, items, dex, starterName, caught, balls, routeIndex, nodeIndex }));
+    const { party, box, badges, difficulty, manual, money, items, dex, starterName, progress, caughtRoutes, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, money, items, dex, starterName, progress, caughtRoutes, balls, routeIndex, nodeIndex }));
   } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
 }
 function loadSave() {
@@ -28,6 +28,9 @@ const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const typeBadge = t => `<span class="type t-${t}">${cap(t)}</span>`;
 const typesText = m => m.types.map(typeBadge).join(" ");
 const lead = () => state.party.find(m => m.curHp > 0);
+const caughtHere = () => !!state.caughtRoutes[ROUTES[state.routeIndex].id];
+const routeFinished = i => (state.progress[ROUTES[i].id] || 0) >= ROUTES[i].nodes.length;
+const routeUnlocked = i => i === 0 || routeFinished(i - 1);
 const boost = () => 1 + 0.1 * state.badges.length;
 
 function hpBar(cur, max) {
@@ -184,6 +187,11 @@ function showTitle() {
     </div>`;
   document.getElementById("cont").addEventListener("click", async () => {
     state = Object.assign(freshState(), s, { message: "" });
+    if (!s.progress) {
+      for (let i = 0; i < state.routeIndex; i++) state.progress[ROUTES[i].id] = ROUTES[i].nodes.length;
+      state.progress[ROUTES[state.routeIndex].id] = state.nodeIndex;
+    }
+    if (!s.caughtRoutes && s.caught) state.caughtRoutes[ROUTES[state.routeIndex].id] = true;
     app.innerHTML = `<p>Loading...</p>`;
     for (const p of [...state.party, ...state.box]) dexCatch(p);
     if (!state.starterName) {
@@ -254,21 +262,28 @@ async function showStarters() {
 }
 
 function showRoute() {
-  saveGame();
   const route = ROUTES[state.routeIndex];
+  state.progress[route.id] = Math.max(state.progress[route.id] || 0, state.nodeIndex);
+  saveGame();
   const finished = state.nodeIndex >= route.nodes.length;
   const next = ROUTES[state.routeIndex + 1];
   app.innerHTML = `
     <h2>${route.name} <small>Stop ${Math.min(state.nodeIndex + 1, route.nodes.length)} of ${route.nodes.length}</small></h2>
     <p>${route.blurb}</p>
-    <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${state.caught ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
+    <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${caughtHere() ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
     <div class="party">${state.party.map(partyCard).join("")}</div>
     <p class="row"><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button>
+    <button id="worldmap" class="primary">Map</button>
     <button id="bag">Bag</button>
     <button id="dex">Pokédex (${Object.keys(state.dex).length} seen)</button>
     <button id="mode">Battles: ${state.manual ? "Manual" : "Auto"} (tap to switch)</button></p>
     ${mapHtml(route)}
     ${state.message ? `<div class="panel">${state.message}</div>` : ""}
+    ${finished ? `<p></p><div class="panel"><p>You're at ${route.name}. What now?</p><div class="row">
+      ${route.wild.length ? `<button id="rv-wild">Look for wild Pokémon</button>` : ""}
+      ${route.nodes.some(n => n.type === "heal") ? `<button id="rv-heal">Heal at the Pokémon Center</button>` : ""}
+      ${route.nodes.some(n => n.type === "shop") ? `<button id="rv-shop">Visit the Poké Mart</button>` : ""}
+      </div></div>` : ""}
     ${finished ? (next
       ? `<p></p><button class="primary" id="travel">Travel to ${next.name}</button>`
       : `<p></p><div class="panel"><p>That's everything built so far. Routes 16 to 18, Cycling Road, and Koga in Fuchsia City come next!</p></div>`) : ""}`;
@@ -276,13 +291,20 @@ function showRoute() {
   app.querySelectorAll(".mapnode:not([disabled])").forEach(btn =>
     btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
   document.getElementById("manage").addEventListener("click", showParty);
+  document.getElementById("worldmap").addEventListener("click", () => showWorldMap());
+  const rv = id => document.getElementById(id);
+  if (rv("rv-wild")) rv("rv-wild").addEventListener("click", revisitWild);
+  if (rv("rv-heal")) rv("rv-heal").addEventListener("click", () => {
+    state.party.forEach(p => { p.curHp = p.maxHp; restoreAll(p); });
+    state.message = `<p>Your whole party is back to full health, and their moves and status are restored.</p>`;
+    showRoute();
+  });
+  if (rv("rv-shop")) rv("rv-shop").addEventListener("click", () => showShop(route.nodes.length - 1));
   document.getElementById("bag").addEventListener("click", () => showBag(showRoute));
   document.getElementById("dex").addEventListener("click", () => showDex(showRoute));
   document.getElementById("mode").addEventListener("click", () => { state.manual = !state.manual; showRoute(); });
   const travel = document.getElementById("travel");
-  if (travel) travel.addEventListener("click", () => {
-    state.routeIndex++; state.nodeIndex = 0; state.caught = false; state.message = ""; showRoute();
-  });
+  if (travel) travel.addEventListener("click", () => travelTo(state.routeIndex + 1));
 }
 
 async function playNode(i) {
@@ -342,6 +364,74 @@ function showDex(back) {
       : "<p>You haven't seen any Pokémon yet.</p>"}
     <p></p><button class="primary" id="dexback">Back</button>`;
   document.getElementById("dexback").addEventListener("click", back);
+}
+
+// ---------- World map ----------
+function travelTo(i) {
+  state.routeIndex = i;
+  state.nodeIndex = state.progress[ROUTES[i].id] || 0;
+  state.message = "";
+  showRoute();
+}
+
+async function revisitWild() {
+  const route = ROUTES[state.routeIndex];
+  state.terrain = route.terrain || "grass";
+  app.innerHTML = `<p>Looking through the grass...</p>`;
+  try {
+    const [lo, hi] = route.levels || [3, 5];
+    const enemy = await newBattler(pick(route.wild), randInt(lo, hi) + levelBonus());
+    showEncounter(enemy, route.nodes.length - 1);
+  } catch (err) {
+    state.message = `<span class="error">${err.message}</span>`;
+    showRoute();
+  }
+}
+
+function showWorldMap(note = "") {
+  const idx = id => ROUTES.findIndex(r => r.id === id);
+  const edges = MAP_EDGES.map(([a, b]) => {
+    const A = MAP_POS[a], B = MAP_POS[b];
+    const open = routeUnlocked(idx(a)) && routeUnlocked(idx(b));
+    return `<line class="edge ${open ? "open" : ""}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+  }).join("");
+  const places = ROUTES.map((r, i) => {
+    const p = MAP_POS[r.id];
+    const cls = i === state.routeIndex ? "current" : routeFinished(i) ? "done" : routeUnlocked(i) ? "open" : "locked";
+    const label = routeUnlocked(i) ? r.name : "???";
+    return `<g class="loc ${cls}" data-i="${i}" role="button" tabindex="0" aria-label="${label}, ${cls}">
+      <circle cx="${p.x}" cy="${p.y}" r="22"/>
+      <text class="ico" x="${p.x}" y="${p.y}">${routeUnlocked(i) ? p.icon : "🔒"}</text>
+      ${cls === "done" ? `<text class="chk" x="${p.x + 17}" y="${p.y - 15}">✔</text>` : ""}
+      <text class="lbl" x="${p.x}" y="${p.y + 40}">${label}</text></g>`;
+  }).join("");
+  const here = ROUTES[state.routeIndex];
+  const unlocked = ROUTES.map((r, i) => i).filter(routeUnlocked);
+  app.innerHTML = `
+    <h2>Kanto</h2>
+    <p class="stats">You are at ${here.name}. Badges: ${state.badges.length}. Tap a location to travel there.</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    <svg class="worldmap" viewBox="0 0 640 520" role="group" aria-label="Map of Kanto">
+      <rect width="640" height="520" class="sea"/>
+      <path class="land" d="M70 70 L330 42 L560 48 L612 200 L596 340 L530 438 L330 478 L190 505 L84 484 L48 300 Z"/>
+      <text class="ico" x="130" y="472" style="font-size:20px">🏠</text>
+      <text class="lbl" x="130" y="500">Pallet Town</text>
+      ${edges}${places}
+    </svg>
+    <details><summary>Location list</summary><div class="row" style="margin-top:8px">
+      ${unlocked.map(i => `<button data-go="${i}" ${i === state.routeIndex ? "disabled" : ""}>${ROUTES[i].name}${routeFinished(i) ? " ✔" : ""}</button>`).join("")}
+    </div></details>
+    <p></p><button class="primary" id="mapback">Back to ${here.name}</button>`;
+  const go = i => {
+    if (!routeUnlocked(i)) return showWorldMap(`<p>That location is locked. Finish ${ROUTES[i - 1].name} first.</p>`);
+    travelTo(i);
+  };
+  app.querySelectorAll(".loc").forEach(g => {
+    g.addEventListener("click", () => go(Number(g.dataset.i)));
+    g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(Number(g.dataset.i)); } });
+  });
+  app.querySelectorAll("button[data-go]").forEach(b => b.addEventListener("click", () => go(Number(b.dataset.go))));
+  document.getElementById("mapback").addEventListener("click", showRoute);
 }
 
 // ---------- Bag and shop ----------
@@ -499,12 +589,12 @@ function showEncounter(enemy, nodeI, note = "") {
     <h2>Wild ${cap(enemy.name)} appeared!</h2>
     ${sceneHtml(me, enemy)}
     <div class="panel battle">
-      <p class="line">${note || "What will you do?"} ${state.caught ? "You already caught a Pokémon on this route." : `Catch chance: about ${chance}%.`}</p>
+      <p class="line">${note || "What will you do?"} ${caughtHere() ? "You already caught a Pokémon on this route." : `Catch chance: about ${chance}%.`}</p>
       <div class="row">
         <button class="primary" id="fight">Fight</button>
         <button id="weaken" ${weak ? "disabled" : ""}>Weaken</button>
-        <button id="ball" ${state.balls && !state.caught ? "" : "disabled"}>${state.caught ? "Already caught one here" : `Throw Poké Ball (${state.balls})`}</button>
-        ${state.items.greatball && !state.caught ? `<button id="great">Throw Great Ball (${state.items.greatball})</button>` : ""}
+        <button id="ball" ${state.balls && !caughtHere() ? "" : "disabled"}>${caughtHere() ? "Already caught one here" : `Throw Poké Ball (${state.balls})`}</button>
+        ${state.items.greatball && !caughtHere() ? `<button id="great">Throw Great Ball (${state.items.greatball})</button>` : ""}
         <button id="bag">Bag</button>
         <button id="run">Run</button>
       </div>
@@ -539,7 +629,7 @@ function throwBall(enemy, nodeI, great = false) {
     enemy.xp = 0;
     enemy.status = null;
     dexCatch(enemy);
-    state.caught = true;
+    state.caughtRoutes[ROUTES[state.routeIndex].id] = true;
     let where = "added to your party";
     if (state.party.length < 6) state.party.push(enemy);
     else { state.box.push(enemy); where = "sent to your box (party is full)"; }
