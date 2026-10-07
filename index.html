@@ -6,13 +6,1825 @@
   <title>Kanto Quest</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <style>
+:root {
+  --lcd: #d4e0a8;
+  --lcd-dark: #a9bd74;
+  --ink: #243019;
+  --ball: #c2412d;
+  --paper: #eef3d6;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--lcd);
+  color: var(--ink);
+  font-family: "Pixelify Sans", ui-monospace, Menlo, monospace;
+  font-size: 18px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#app { flex: 1; width: 100%; max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+footer { text-align: center; font-size: 13px; padding: 12px; opacity: .7; }
+h1 { font-size: 44px; margin: 0 0 4px; line-height: 1; }
+h2 { font-size: 26px; margin: 0 0 8px; }
+p { margin: 0 0 16px; max-width: 60ch; }
+.panel { background: var(--paper); border: 3px solid var(--ink); padding: 16px; box-shadow: 4px 4px 0 var(--ink); }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+button {
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 3px solid var(--ink); padding: 8px 14px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+button:hover { background: var(--lcd-dark); }
+button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+button:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
+button.primary { background: var(--ball); color: var(--paper); }
+.starter { flex: 1 1 160px; text-align: center; padding: 12px; }
+.starter img, .mon img { width: 96px; height: 96px; image-rendering: pixelated; }
+.path { list-style: none; margin: 16px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.node { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+.node .icon { font-size: 26px; width: 36px; text-align: center; }
+.node.done { opacity: .45; }
+.node.locked { opacity: .35; cursor: not-allowed; }
+.party { display: flex; gap: 8px; margin-bottom: 16px; }
+.mon { text-align: center; font-size: 14px; }
+.mon img { width: 64px; height: 64px; }
+.badges { margin-left: auto; }
+.error { color: var(--ball); font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  button { transition: background .1s; }
+}
+
+/* Battle screen */
+.bar { height: 10px; border: 2px solid var(--ink); background: var(--lcd); margin: 4px 0; min-width: 90px; }
+.bar > div { height: 100%; transition: width .4s; }
+.battle .side { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.battle .side > div { flex: 1; }
+.battle .side img { width: 96px; height: 96px; image-rendering: pixelated; }
+.battle .side:nth-of-type(2) { flex-direction: row-reverse; text-align: right; }
+.line { min-height: 3em; margin: 12px 0; }
+small { opacity: .75; }
+
+/* Party and stats */
+.party { flex-wrap: wrap; }
+.mon.fainted { opacity: .4; }
+.stats { margin-bottom: 8px; }
+.battle .row { margin-top: 8px; }
+
+/* Party management */
+.partyrow { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.partyrow .mon { min-width: 110px; }
+.partyrow button { padding: 4px 10px; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+
+button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.moves { font-size: 13px; opacity: .85; flex: 1 1 180px; line-height: 1.5; }
+
+.movebtn { text-align: left; min-width: 140px; }
+.movebtn small { display: block; }
+
+/* Status tags */
+.st { display: inline-block; font-size: 12px; padding: 0 5px; border: 2px solid var(--ink); color: var(--paper); line-height: 1.3; }
+.st-poison { background: #7b3f9e; }
+.st-burn { background: #c2412d; }
+.st-paralysis { background: #b8901a; color: var(--ink); }
+.st-sleep { background: #5a6b7a; }
+.st-freeze { background: #3a8fb7; }
+
+/* Bag and shop */
+.bagrow { border-bottom: 2px dashed var(--lcd-dark); padding: 8px 0; margin-bottom: 4px; }
+.bagrow small { display: block; margin: 2px 0 6px; }
+
+/* Pokédex */
+.dexgrid { display: flex; flex-wrap: wrap; gap: 10px; }
+.dexgrid .mon { width: 104px; padding: 6px; border: 2px solid var(--ink); background: var(--paper); }
+.dexgrid .mon small { display: block; }
+.seenonly img { filter: brightness(0.3); }
+
+/* Type badges */
+.type { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 9px; color: #fff; text-transform: uppercase; letter-spacing: .5px; line-height: 1.6; margin-right: 2px; }
+.t-normal { background: #a8a77a; } .t-fire { background: #ee8130; } .t-water { background: #6390f0; }
+.t-grass { background: #7ac74c; } .t-flying { background: #a98ff3; } .t-fighting { background: #c22e28; }
+.t-poison { background: #a33ea1; } .t-psychic { background: #f95587; } .t-bug { background: #a6b91a; }
+.t-ghost { background: #735797; } .t-dragon { background: #6f35fc; } .t-dark { background: #705746; }
+.t-fairy { background: #d685ad; }
+.t-electric { background: #f7d02c; color: var(--ink); } .t-ice { background: #96d9d6; color: var(--ink); }
+.t-ground { background: #e2bf65; color: var(--ink); } .t-rock { background: #b6a136; } .t-steel { background: #b7b7ce; color: var(--ink); }
+
+/* Battle scene */
+.scene { position: relative; height: 300px; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  margin-bottom: 16px; overflow: hidden; background: linear-gradient(#bfe3f2 0 52%, #8fc46a 52% 100%); }
+.scene.forest { background: linear-gradient(#6f9d6a 0 45%, #3c6b3a 45% 100%); }
+.scene.cave { background: linear-gradient(#4a4a55 0 50%, #2f2f38 50% 100%); }
+.scene.tower { background: linear-gradient(#4b3a6b 0 50%, #2b2140 50% 100%); }
+.scene.ship { background: linear-gradient(#9fd0e8 0 45%, #4f86b8 45% 58%, #a07a4f 58% 100%); }
+.scene.city { background: linear-gradient(#cfe6f5 0 50%, #b9b9b0 50% 100%); }
+.scene.gym { background: linear-gradient(#d9d2c3 0 50%, #a99f8d 50% 100%); }
+.plat { position: absolute; border-radius: 50%; background: rgba(0, 0, 0, .2); }
+.foe-plat { width: 150px; height: 26px; right: 3%; top: 134px; }
+.you-plat { width: 180px; height: 30px; left: 2%; bottom: 6px; }
+.spr { position: absolute; object-fit: contain; object-position: bottom; image-rendering: pixelated; }
+.spr.foe { width: 120px; height: 120px; right: 7%; top: 28px; }
+.spr.you { width: 150px; height: 150px; left: 7%; bottom: 20px; }
+.spr.noback { scale: -1 1; }
+.infobox { position: absolute; background: var(--paper); border: 3px solid var(--ink); padding: 6px 8px; font-size: 15px; line-height: 1.3; }
+.infobox small { display: block; }
+.foe-box { top: 10px; left: 10px; width: min(46%, 230px); }
+.you-box { bottom: 10px; right: 10px; width: min(50%, 250px); }
+.xpbar { height: 6px; border: 2px solid var(--ink); background: var(--lcd); margin-top: 3px; }
+.xpbar > div { height: 100%; background: #4a7ec2; }
+@media (max-width: 420px) {
+  .scene { height: 280px; }
+  .spr.foe { width: 100px; height: 100px; }
+  .spr.you { width: 120px; height: 120px; }
+  .infobox { font-size: 13px; padding: 4px 6px; }
+}
+
+/* Party cards */
+.party { display: flex; flex-wrap: wrap; gap: 10px; }
+.pcard { width: 118px; padding: 6px 8px 8px; background: var(--paper); border: 3px solid var(--ink); border-top: 9px solid var(--tc, var(--ink));
+  box-shadow: 3px 3px 0 var(--ink); font-size: 14px; line-height: 1.3; text-align: center; }
+.pcard img { width: 72px; height: 72px; image-rendering: pixelated; }
+.pcard .pname { font-weight: 700; }
+.pcard small { display: block; }
+.pcard.fainted { opacity: .45; }
+.bt-normal { --tc: #a8a77a; } .bt-fire { --tc: #ee8130; } .bt-water { --tc: #6390f0; } .bt-grass { --tc: #7ac74c; }
+.bt-electric { --tc: #f7d02c; } .bt-ice { --tc: #96d9d6; } .bt-fighting { --tc: #c22e28; } .bt-poison { --tc: #a33ea1; }
+.bt-ground { --tc: #e2bf65; } .bt-flying { --tc: #a98ff3; } .bt-psychic { --tc: #f95587; } .bt-bug { --tc: #a6b91a; }
+.bt-rock { --tc: #b6a136; } .bt-ghost { --tc: #735797; } .bt-dragon { --tc: #6f35fc; } .bt-dark { --tc: #705746; }
+.bt-steel { --tc: #b7b7ce; } .bt-fairy { --tc: #d685ad; }
+
+/* Route map */
+.map { margin: 24px 0 20px; }
+.maprow { position: relative; display: flex; margin-bottom: 30px; min-height: 96px; }
+.maprow.rev { flex-direction: row-reverse; }
+.maprow::before { content: ""; position: absolute; top: 31px; height: 4px; background: var(--ink);
+  left: 11.5%; width: calc((var(--n) - 1) * 25.667%); }
+.maprow.rev::before { left: auto; right: 11.5%; }
+.maprow.more::after { content: ""; position: absolute; top: 31px; width: 4px; height: 126px; background: var(--ink); right: calc(11.5% - 2px); }
+.maprow.rev.more::after { right: auto; left: calc(11.5% - 2px); }
+.mapnode { position: relative; z-index: 1; width: 23%; margin-right: 2.667%; padding: 0; background: none; border: 0; box-shadow: none; text-align: center; font-size: 13px; line-height: 1.2; }
+.maprow.rev .mapnode { margin-right: 0; margin-left: 2.667%; }
+.mapnode:nth-child(4) { margin: 0; }
+.mapnode:hover, .mapnode:active { background: none; transform: none; box-shadow: none; }
+.mapnode .icon { display: flex; width: 62px; height: 62px; margin: 0 auto 4px; border-radius: 50%; align-items: center; justify-content: center;
+  font-size: 28px; background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.mapnode .lbl { display: block; overflow-wrap: anywhere; }
+.n-wild .icon { background: #d7ecb3; } .n-trainer .icon { background: #f2c8c0; } .n-rival .icon { background: #e2c8f0; }
+.n-gym .icon { background: #f7e08a; } .n-shop .icon { background: #c8def2; } .n-heal .icon { background: #f9d4e0; }
+.n-item .icon { background: #efe0c0; } .n-gift .icon { background: #f9e6b0; } .n-end .icon { background: #e6e6e6; }
+.mapnode.locked { opacity: .5; cursor: not-allowed; }
+.mapnode.done .icon { background: var(--lcd-dark); opacity: .7; }
+.mapnode.done .icon::after { content: "✔"; position: absolute; top: 40px; left: calc(50% + 10px); font-size: 16px; background: var(--paper);
+  border: 2px solid var(--ink); border-radius: 50%; width: 22px; height: 22px; line-height: 18px; }
+.mapnode.current .icon { border-color: var(--ball); box-shadow: 0 0 0 4px var(--ball); }
+.mapnode .marker { position: absolute; width: 44px; height: 44px; left: 50%; top: -34px; transform: translateX(-50%); image-rendering: pixelated; z-index: 2; }
+.mapnode:focus-visible .icon { outline: 3px solid var(--ink); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .mapnode.current .icon { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(194, 65, 45, .35); } }
+}
+@media (max-width: 420px) {
+  .mapnode { font-size: 11px; }
+  .mapnode .icon { width: 52px; height: 52px; font-size: 24px; }
+  .maprow::before, .maprow.more::after { top: 26px; }
+  .maprow.more::after { height: 116px; }
+  .pcard { width: calc(50% - 6px); }
+}
+
+/* Fixed row height keeps the connecting lines lined up */
+.maprow { height: 100px; min-height: 0; }
+.maprow.more::after, .maprow.more::after { height: 130px; }
+.mapnode .lbl { max-height: 2.5em; overflow: hidden; }
+@media (max-width: 420px) { .maprow.more::after { height: 130px; } }
+
+/* World map */
+.worldmap { width: 100%; height: auto; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); margin-bottom: 14px; display: block; }
+.worldmap .sea { fill: #8ecae6; }
+.worldmap .land { fill: #c5e1a5; stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; }
+.worldmap .edge { stroke: #8d6e63; stroke-width: 4; stroke-dasharray: 3 7; stroke-linecap: round; opacity: .55; }
+.worldmap .edge.open { stroke-dasharray: none; opacity: 1; }
+.worldmap .loc { cursor: pointer; }
+.worldmap .loc circle { fill: #ffd54f; stroke: var(--ink); stroke-width: 3; }
+.worldmap .loc.done circle { fill: #9ccc65; }
+.worldmap .loc.current circle { fill: var(--ball); }
+.worldmap .loc.locked { cursor: not-allowed; }
+.worldmap .loc.locked circle { fill: #bdbdbd; }
+.worldmap .loc:hover circle, .worldmap .loc:focus-visible circle { stroke-width: 5; }
+.worldmap .loc:focus { outline: none; }
+.worldmap text { font-family: inherit; text-anchor: middle; }
+.worldmap .ico { font-size: 22px; dominant-baseline: central; }
+.worldmap .chk { font-size: 15px; fill: var(--ink); font-weight: 700; }
+.worldmap .lbl { font-size: 15px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+@media (prefers-reduced-motion: no-preference) {
+  .worldmap .loc.current circle { animation: mappulse 1.4s ease-in-out infinite; }
+  @keyframes mappulse { 50% { stroke-width: 7; } }
+}
+details summary { cursor: pointer; margin: 6px 0; }
+
+/* Real map image mode */
+.imgmap { position: relative; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); line-height: 0; }
+.imgmap img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.imgmap.calib { cursor: crosshair; }
+.cdot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--ball); border: 2px solid #fff; pointer-events: none; }
+.pin { position: absolute; transform: translate(-50%, -50%); width: 30px; height: 30px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 24px;
+  background: #ffd54f; border: 3px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.pin:hover, .pin:active { transform: translate(-50%, -50%); background: #ffe27a; box-shadow: 2px 2px 0 var(--ink); }
+.pin.done { background: #9ccc65; } .pin.current { background: var(--ball); } .pin.locked { background: #bdbdbd; opacity: .75; cursor: not-allowed; }
+.pin .pl { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 700 11px/1.2 inherit; font-style: normal;
+  color: var(--ink); text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) { .pin.current { animation: pinpulse 1.4s ease-in-out infinite; } @keyframes pinpulse { 50% { box-shadow: 0 0 0 7px rgba(194, 65, 45, .35); } } }
+
+</style>
 </head>
 <body>
   <main id="app" aria-live="polite"></main>
   <footer>Unofficial fan project. Not affiliated with Nintendo, Game Freak, or The Pokémon Company.</footer>
-  <script src="src/data.js"></script>
-  <script src="src/battle.js"></script>
-  <script src="src/main.js"></script>
+  <script>
+// Data layer: loads Pokémon from PokéAPI and caches them in localStorage.
+const API = "https://pokeapi.co/api/v2";
+
+// Level-up moves for one Pokémon, from the oldest game PokéAPI has data for.
+function buildLearnset(d) {
+  const prefer = ["red-blue", "yellow", "gold-silver", "crystal"];
+  const byGroup = {};
+  for (const mv of d.moves) {
+    for (const v of mv.version_group_details) {
+      if (v.move_learn_method.name !== "level-up") continue;
+      (byGroup[v.version_group.name] = byGroup[v.version_group.name] || [])
+        .push({ name: mv.move.name, level: v.level_learned_at });
+    }
+  }
+  const g = prefer.find(x => byGroup[x]) || Object.keys(byGroup).pop();
+  return (byGroup[g] || []).sort((a, b) => a.level - b.level);
+}
+
+async function getPokemon(name) {
+  const key = "kq:mon3:" + name;
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch (e) { /* storage unavailable, fetch instead */ }
+
+  const res = await fetch(`${API}/pokemon/${name}`);
+  if (!res.ok) throw new Error(`Could not load ${name} (${res.status})`);
+  const d = await res.json();
+
+  // Keep only what the game needs, so the cache stays small.
+  // Animated Gen 5 sprites exist for most of the Pokémon we use.
+  const v = d.sprites.versions;
+  const gen5 = v && v["generation-v"] && v["generation-v"]["black-white"] && v["generation-v"]["black-white"].animated;
+  const stat = n => d.stats.find(s => s.stat.name === n).base_stat;
+  const mon = {
+    id: d.id,
+    name: d.name,
+    types: d.types.map(t => t.type.name),
+    hp: stat("hp"), attack: stat("attack"), defense: stat("defense"),
+    spAttack: stat("special-attack"), spDefense: stat("special-defense"),
+    speed: stat("speed"),
+    sprite: d.sprites.front_default,
+    back: d.sprites.back_default || null,
+    aFront: gen5 ? gen5.front_default : null,
+    aBack: gen5 ? gen5.back_default : null,
+    learnset: buildLearnset(d)
+  };
+  try { localStorage.setItem(key, JSON.stringify(mon)); } catch (e) {}
+  return mon;
+}
+
+// Moves that need special rules we don't have yet are left out.
+const MOVE_BLACKLIST = ["self-destruct", "explosion", "hyper-beam", "dream-eater", "fly", "dig",
+  "solar-beam", "razor-wind", "skull-bash", "sky-attack", "focus-punch", "giga-impact"];
+
+// Returns null on any failure so one bad move never breaks a battle.
+async function getMove(name) {
+  const key = "kq:move2:" + name;
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  try {
+    const res = await fetch(`${API}/move/${name}`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    const am = d.meta && d.meta.ailment ? d.meta.ailment.name : null;
+    const ailment = ["poison", "burn", "paralysis", "sleep", "freeze"].includes(am) ? am : null;
+    const mv = {
+      ailment,
+      // Damaging moves use their listed chance; pure status moves always try to apply it.
+      ailmentChance: ailment ? ((d.meta.ailment_chance) || (d.power ? 0 : 100)) : 0,
+      name: d.name,
+      label: d.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+      type: d.type.name,
+      power: d.power,
+      accuracy: d.accuracy == null ? 100 : d.accuracy,
+      pp: d.pp || 20,
+      cls: d.damage_class.name
+    };
+    try { localStorage.setItem(key, JSON.stringify(mv)); } catch (e) {}
+    return mv;
+  } catch (e) { return null; }
+}
+
+const STARTERS = ["bulbasaur", "charmander", "squirtle"];
+
+// Level-based evolutions: name -> [level, evolves into]
+const EVOLUTIONS = {
+  bulbasaur: [16, "ivysaur"], ivysaur: [32, "venusaur"],
+  charmander: [16, "charmeleon"], charmeleon: [36, "charizard"],
+  squirtle: [16, "wartortle"], wartortle: [36, "blastoise"],
+  caterpie: [7, "metapod"], metapod: [10, "butterfree"],
+  weedle: [7, "kakuna"], kakuna: [10, "beedrill"],
+  pidgey: [18, "pidgeotto"], pidgeotto: [36, "pidgeot"],
+  rattata: [20, "raticate"], geodude: [25, "graveler"],
+  oddish: [21, "gloom"], zubat: [22, "golbat"], paras: [24, "parasect"],
+  spearow: [20, "fearow"], ekans: [22, "arbok"], sandshrew: [22, "sandslash"],
+  bellsprout: [21, "weepinbell"], abra: [16, "kadabra"], mankey: [28, "primeape"],
+  meowth: [28, "persian"], diglett: [26, "dugtrio"], machop: [28, "machoke"],
+  venonat: [31, "venomoth"],
+  gastly: [25, "haunter"], cubone: [28, "marowak"], slowpoke: [37, "slowbro"],
+  koffing: [35, "weezing"], magnemite: [30, "magneton"], voltorb: [30, "electrode"]
+};
+
+// Your rival always picks the starter that beats yours.
+const RIVAL_STARTER = { bulbasaur: "charmander", charmander: "squirtle", squirtle: "bulbasaur" };
+const STARTER_LINES = [["bulbasaur", "ivysaur", "venusaur"], ["charmander", "charmeleon", "charizard"], ["squirtle", "wartortle", "blastoise"]];
+
+const BADGE_PERK = "Your Pokémon deal 10% more damage (stacks with each badge).";
+
+// Node types: wild, trainer, item, heal, gym, end.
+const ROUTES = [
+  {
+    id: "route-1", terrain: "grass", name: "Route 1",
+    blurb: "The grassy road between Pallet Town and Viridian City.",
+    wild: ["pidgey", "rattata"],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest by the road" },
+      { type: "shop", label: "Viridian Poké Mart" },
+      { type: "end", label: "Viridian City" }
+    ]
+  },
+  {
+    id: "route-2", terrain: "grass", name: "Route 2",
+    blurb: "A path north of Viridian City, with tall grass on both sides.",
+    wild: ["pidgey", "rattata", "caterpie", "weedle"],
+    levels: [4, 7],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest at the forest gate" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: Hey, you made it this far? I've been training too. Let's see who's stronger!",
+        team: [["$rival", 8], ["pidgey", 7], ["rattata", 7]] },
+      { type: "end", label: "Viridian Forest entrance" }
+    ]
+  },
+  {
+    id: "viridian-forest", terrain: "forest", name: "Viridian Forest",
+    blurb: "A dense forest full of bug Pokémon and bug catchers.",
+    wild: ["caterpie", "caterpie", "weedle", "weedle", "pidgey", "pikachu"],
+    levels: [5, 8],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Bug Catcher Rick", label: "Trainer: Bug Catcher Rick",
+        team: [["weedle", 6], ["caterpie", 6]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "gift", mon: "oddish", level: 9, label: "A hiker offers you a Pokémon" },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "trainer", name: "Bug Catcher Doug", label: "Trainer: Bug Catcher Doug",
+        team: [["weedle", 7], ["weedle", 7], ["kakuna", 7]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest under the trees" },
+      { type: "trainer", name: "Bug Catcher Sammy", label: "Trainer: Bug Catcher Sammy",
+        team: [["weedle", 9]] },
+      { type: "end", label: "Pewter City" }
+    ]
+  },
+  {
+    id: "pewter-city", terrain: "city", name: "Pewter City",
+    blurb: "A grey stone city. Its gym leader uses Rock-type Pokémon.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
+      { type: "gym", leader: "Brock", badge: "Boulder Badge", label: "Gym: Brock",
+        team: [["geodude", 11], ["onix", 13]] },
+      { type: "end", label: "Route 3 is next" }
+    ]
+  },
+  {
+    id: "route-3", terrain: "grass", name: "Route 3",
+    blurb: "A rocky trail east of Pewter City, full of trainers heading to Mt. Moon.",
+    wild: ["pidgey", "spearow", "rattata", "ekans", "jigglypuff"],
+    levels: [7, 10],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Youngster Ben", label: "Trainer: Youngster Ben",
+        team: [["rattata", 9], ["ekans", 9]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Lass Janice", label: "Trainer: Lass Janice",
+        team: [["pidgey", 9], ["pidgey", 10]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Pokémon Center at Mt. Moon" },
+      { type: "end", label: "Mt. Moon entrance" }
+    ]
+  },
+  {
+    id: "mt-moon", terrain: "cave", name: "Mt. Moon",
+    blurb: "A dark cave. Zubat swarm the tunnels, and strange Pokémon hide in the shadows.",
+    wild: ["zubat", "zubat", "zubat", "geodude", "paras", "clefairy"],
+    levels: [8, 12],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Marcos", label: "Trainer: Hiker Marcos",
+        team: [["geodude", 10], ["geodude", 11]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Super Nerd Miguel", label: "Trainer: Super Nerd Miguel",
+        team: [["rattata", 12], ["zubat", 12]] },
+      { type: "item", item: "ball", amount: 2, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest in the cave" },
+      { type: "end", label: "Route 4" }
+    ]
+  },
+  {
+    id: "route-4", terrain: "grass", name: "Route 4",
+    blurb: "The ledge-lined road out of Mt. Moon, leading down to Cerulean City.",
+    wild: ["rattata", "spearow", "ekans", "sandshrew"],
+    levels: [10, 13],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Lass Crissy", label: "Trainer: Lass Crissy",
+        team: [["rattata", 12], ["sandshrew", 12]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "end", label: "Cerulean City" }
+    ]
+  },
+  {
+    id: "cerulean-city", terrain: "city", name: "Cerulean City",
+    blurb: "A seaside city. Its gym leader specializes in Water Pokémon, which are weak to Grass and Electric.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
+      { type: "gym", leader: "Misty", badge: "Cascade Badge", label: "Gym: Misty",
+        team: [["staryu", 11], ["starmie", 13]] },
+      { type: "end", label: "Route 24 is next" }
+    ]
+  },
+  {
+    id: "route-24", terrain: "grass", name: "Route 24",
+    blurb: "Nugget Bridge, north of Cerulean City, where trainers challenge you one after another.",
+    wild: ["caterpie", "weedle", "pidgey", "oddish", "bellsprout", "abra"],
+    levels: [11, 14],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Camper Liam", label: "Trainer: Camper Liam",
+        team: [["weedle", 13], ["kakuna", 13]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Lass Reli", label: "Trainer: Lass Reli",
+        team: [["oddish", 14], ["bellsprout", 14]] },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest on the bridge" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: Smell ya later? Not yet! You won the Cascade Badge, so I want a battle!",
+        team: [["$rival", 15], ["pidgey", 14], ["abra", 14], ["rattata", 13]] },
+      { type: "end", label: "Route 25" }
+    ]
+  },
+  {
+    id: "route-25", terrain: "grass", name: "Route 25",
+    blurb: "A winding seaside path that leads to Bill's cottage.",
+    wild: ["pidgey", "oddish", "bellsprout", "abra", "venonat"],
+    levels: [12, 15],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Franklin", label: "Trainer: Hiker Franklin",
+        team: [["geodude", 14], ["machop", 14]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 4, label: "Bill gives you Poké Balls" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest at Bill's cottage" },
+      { type: "end", label: "Routes 5 and 6" }
+    ]
+  },
+  {
+    id: "route-5-6", terrain: "grass", name: "Routes 5 and 6",
+    blurb: "The long road south from Cerulean City, past the daycare and down to Vermilion.",
+    wild: ["pidgey", "oddish", "bellsprout", "meowth", "mankey"],
+    levels: [13, 16],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Lass Dana", label: "Trainer: Lass Dana",
+        team: [["oddish", 15], ["bellsprout", 15]] },
+      { type: "gift", mon: "diglett", level: 15, label: "A kid offers you a Pokémon" },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Bug Catcher Elijah", label: "Trainer: Bug Catcher Elijah",
+        team: [["kakuna", 15], ["venonat", 15]] },
+      { type: "heal", label: "Rest by the road" },
+      { type: "end", label: "Vermilion City port" }
+    ]
+  },
+  {
+    id: "ss-anne", terrain: "ship", name: "S.S. Anne",
+    blurb: "A luxury cruise ship docked at Vermilion City, packed with trainers.",
+    wild: [],
+    nodes: [
+      { type: "trainer", name: "Sailor Dylan", label: "Trainer: Sailor Dylan",
+        team: [["machop", 16], ["shellder", 16]] },
+      { type: "trainer", name: "Gentleman Thomas", label: "Trainer: Gentleman Thomas",
+        team: [["growlithe", 17]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "trainer", name: "Fisherman Barney", label: "Trainer: Fisherman Barney",
+        team: [["goldeen", 16], ["tentacool", 16]] },
+      { type: "heal", label: "Ship's cabin" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: Well, well. Even on a fancy cruise ship I can't get away from you. Ready?",
+        team: [["$rival", 19], ["pidgeotto", 17], ["kadabra", 17], ["rattata", 16]] },
+      { type: "trainer", name: "Sailor Edmond", label: "Trainer: Sailor Edmond",
+        team: [["shellder", 17], ["machop", 17]] },
+      { type: "end", label: "Vermilion City" }
+    ]
+  },
+  {
+    id: "vermilion-city", terrain: "city", name: "Vermilion City",
+    blurb: "A busy port town. Its gym leader uses Electric Pokémon, which Ground types can't be hurt by.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
+      { type: "gym", leader: "Lt. Surge", badge: "Thunder Badge", label: "Gym: Lt. Surge",
+        team: [["voltorb", 14], ["pikachu", 15], ["raichu", 17]] },
+      { type: "end", label: "Route 9 is next" }
+    ]
+  },
+  {
+    id: "route-9-10", terrain: "grass", name: "Routes 9 and 10",
+    blurb: "Rocky trails east of Cerulean City, crackling with electricity near the Power Plant.",
+    wild: ["spearow", "ekans", "rattata", "sandshrew", "voltorb", "magnemite"],
+    levels: [15, 18],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Alan", label: "Trainer: Hiker Alan",
+        team: [["geodude", 17], ["geodude", 17]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Jr. Trainer Dave", label: "Trainer: Jr. Trainer Dave",
+        team: [["spearow", 17], ["rattata", 17], ["sandshrew", 17]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Pokémon Center" },
+      { type: "end", label: "Rock Tunnel" }
+    ]
+  },
+  {
+    id: "rock-tunnel", terrain: "cave", name: "Rock Tunnel",
+    blurb: "A pitch-black cave. Wild Pokémon jump out of the dark with every step.",
+    wild: ["zubat", "zubat", "geodude", "machop", "onix"],
+    levels: [15, 18],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Hiker Lenny", label: "Trainer: Hiker Lenny",
+        team: [["geodude", 17], ["machop", 17]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "trainer", name: "Pokémaniac Cooper", label: "Trainer: Pokémaniac Cooper",
+        team: [["slowpoke", 16], ["cubone", 16]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "heal", label: "Rest in the tunnel" },
+      { type: "trainer", name: "Hiker Dudley", label: "Trainer: Hiker Dudley",
+        team: [["machop", 18], ["onix", 17]] },
+      { type: "end", label: "Lavender Town" }
+    ]
+  },
+  {
+    id: "lavender-town", terrain: "tower", name: "Lavender Town",
+    blurb: "A quiet town with a haunted Pokémon Tower. Normal-type moves can't hurt Ghost Pokémon.",
+    wild: ["gastly", "gastly", "zubat", "cubone"],
+    levels: [16, 19],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
+      { type: "rival", name: "Rival Blue", label: "Rival Blue appears!",
+        taunt: "Blue: This tower is creepy, but I'm not scared. Show me how strong you've gotten!",
+        team: [["$rival", 20], ["pidgeotto", 18], ["kadabra", 18], ["growlithe", 18]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Channeler Hope", label: "Trainer: Channeler Hope",
+        team: [["gastly", 18], ["gastly", 18]] },
+      { type: "wild", label: "Wild encounter" },
+      { type: "item", item: "ball", amount: 3, label: "Found Poké Balls" },
+      { type: "trainer", name: "Channeler Karina", label: "Trainer: Channeler Karina",
+        team: [["gastly", 19]] },
+      { type: "end", label: "Route 8" }
+    ]
+  },
+  {
+    id: "route-8", terrain: "grass", name: "Routes 8 and 7",
+    blurb: "The road west from Lavender Town to Celadon City, with fire-type Pokémon in the grass.",
+    wild: ["growlithe", "vulpix", "meowth", "ekans", "sandshrew", "pidgey"],
+    levels: [16, 19],
+    nodes: [
+      { type: "wild", label: "Wild encounter" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Lass Megan", label: "Trainer: Lass Megan",
+        team: [["meowth", 18], ["pidgeotto", 18]] },
+      { type: "item", item: "potion", label: "Found a Potion" },
+      { type: "wild", label: "Wild encounter" },
+      { type: "trainer", name: "Biker Jaxon", label: "Trainer: Biker Jaxon",
+        team: [["voltorb", 18], ["koffing", 18]] },
+      { type: "heal", label: "Rest by the road" },
+      { type: "end", label: "Celadon City" }
+    ]
+  },
+  {
+    id: "celadon-city", terrain: "city", name: "Celadon City",
+    blurb: "A big city with a department store. Its gym leader uses Grass Pokémon, which are weak to Fire, Flying, and Poison.",
+    wild: [],
+    nodes: [
+      { type: "heal", label: "Pokémon Center" },
+      { type: "shop", label: "Poké Mart" },
+      { type: "gym", leader: "Erika", badge: "Rainbow Badge", label: "Gym: Erika",
+        team: [["tangela", 16], ["weepinbell", 17], ["vileplume", 19]] },
+      { type: "end", label: "Route 16 is next" }
+    ]
+  }
+];
+
+// Items. heal = HP restored, cure = statuses cured, revive = fraction of HP, ball = catch multiplier.
+const ITEMS = {
+  pokeball:    { name: "Poké Ball",    price: 100, ball: 1,   desc: "Catches wild Pokémon." },
+  greatball:   { name: "Great Ball",   price: 250, ball: 1.5, desc: "Catches wild Pokémon 1.5x as well as a Poké Ball." },
+  potion:      { name: "Potion",       price: 100, heal: 20,  desc: "Restores 20 HP." },
+  superpotion: { name: "Super Potion", price: 250, heal: 50,  desc: "Restores 50 HP." },
+  hyperpotion: { name: "Hyper Potion", price: 600, heal: 120, desc: "Restores 120 HP." },
+  antidote:    { name: "Antidote",     price: 70,  cure: ["poison"], desc: "Cures poison." },
+  fullheal:    { name: "Full Heal",    price: 250, cure: "all", desc: "Cures any status problem." },
+  revive:      { name: "Revive",       price: 500, revive: 0.5, desc: "Revives a fainted Pokémon with half its HP." }
+};
+const SHOP_STOCK = ["pokeball", "greatball", "potion", "superpotion", "hyperpotion", "antidote", "fullheal", "revive"];
+
+// Optional: put a Kanto map image in the repo's top folder under one of these names and the game will use it.
+// Pin positions for that image are saved in the browser after you tap "Calibrate map", or you can paste them
+// into MAP_IMG_POS below (percent of the image width and height, e.g. "route-1": { x: 22, y: 81 }).
+const MAP_IMAGES = ["kanto-map.png", "kanto-map.jpg", "kanto-map.jpeg", "kanto-map.webp"];
+const MAP_IMG_POS = {};
+
+// World map layout (SVG coordinates, 640 x 520). Each Pokémon location sits on the map where it is in Kanto.
+const MAP_POS = {
+  "route-1": { x: 130, y: 415, icon: "🌿" }, "route-2": { x: 130, y: 335, icon: "🌿" },
+  "viridian-forest": { x: 130, y: 255, icon: "🌲" }, "pewter-city": { x: 130, y: 170, icon: "🏙️" },
+  "route-3": { x: 205, y: 158, icon: "🌿" }, "mt-moon": { x: 268, y: 138, icon: "⛰️" },
+  "route-4": { x: 338, y: 190, icon: "🌿" }, "cerulean-city": { x: 430, y: 150, icon: "🏙️" },
+  "route-24": { x: 420, y: 66, icon: "🌉" }, "route-25": { x: 505, y: 66, icon: "🌿" },
+  "route-5-6": { x: 405, y: 240, icon: "🌿" }, "vermilion-city": { x: 400, y: 350, icon: "🏙️" },
+  "ss-anne": { x: 500, y: 415, icon: "🚢" }, "route-9-10": { x: 550, y: 160, icon: "🌿" },
+  "rock-tunnel": { x: 560, y: 245, icon: "⛰️" }, "lavender-town": { x: 570, y: 330, icon: "🗼" },
+  "route-8": { x: 485, y: 298, icon: "🌿" }, "celadon-city": { x: 310, y: 280, icon: "🏙️" }
+};
+// Which locations the trails connect (a trail shows as open once both ends are unlocked).
+const MAP_EDGES = [
+  ["route-1", "route-2"], ["route-2", "viridian-forest"], ["viridian-forest", "pewter-city"], ["pewter-city", "route-3"],
+  ["route-3", "mt-moon"], ["mt-moon", "route-4"], ["route-4", "cerulean-city"], ["cerulean-city", "route-24"],
+  ["route-24", "route-25"], ["cerulean-city", "route-5-6"], ["route-5-6", "vermilion-city"], ["vermilion-city", "ss-anne"],
+  ["cerulean-city", "route-9-10"], ["route-9-10", "rock-tunnel"], ["rock-tunnel", "lavender-town"],
+  ["lavender-town", "route-8"], ["route-8", "celadon-city"]
+];
+
+const NODE_ICONS = { rival: "🆚", shop: "🏪", wild: "🌿", trainer: "⚔️", item: "🎒", heal: "💊", gym: "🏅", gift: "🎁", end: "🏁" };
+
+// Battle engine. Battles resolve automatically from stats, types, and STAB.
+
+// Type chart: attacker -> [super effective, not very effective, no effect]
+const CHART = {
+  normal:   ["", "rock steel", "ghost"],
+  fire:     ["grass ice bug steel", "fire water rock dragon", ""],
+  water:    ["fire ground rock", "water grass dragon", ""],
+  electric: ["water flying", "electric grass dragon", "ground"],
+  grass:    ["water ground rock", "fire grass poison flying bug dragon steel", ""],
+  ice:      ["grass ground flying dragon", "fire water ice steel", ""],
+  fighting: ["normal ice rock dark steel", "poison flying psychic bug fairy", "ghost"],
+  poison:   ["grass fairy", "poison ground rock ghost", "steel"],
+  ground:   ["fire electric poison rock steel", "grass bug", "flying"],
+  flying:   ["grass fighting bug", "electric rock steel", ""],
+  psychic:  ["fighting poison", "psychic steel", "dark"],
+  bug:      ["grass psychic dark", "fire fighting poison flying ghost steel fairy", ""],
+  rock:     ["fire ice flying bug", "fighting ground steel", ""],
+  ghost:    ["psychic ghost", "dark", "normal"],
+  dragon:   ["dragon", "steel", "fairy"],
+  dark:     ["psychic ghost", "fighting dark fairy", ""],
+  steel:    ["ice rock fairy", "fire water electric steel", ""],
+  fairy:    ["fighting dragon dark", "fire poison steel", ""]
+};
+
+function typeMultiplier(atkType, defType) {
+  const [sup, nve, none] = (CHART[atkType] || ["", "", ""]).map(s => s.split(" "));
+  if (none.includes(defType)) return 0;
+  if (sup.includes(defType)) return 2;
+  if (nve.includes(defType)) return 0.5;
+  return 1;
+}
+const effectiveness = (atkType, defTypes) =>
+  defTypes.reduce((m, t) => m * typeMultiplier(atkType, t), 1);
+
+function calcStats(m, L) {
+  const f = b => Math.floor((2 * b * L) / 100) + 5;
+  return {
+    maxHp: Math.floor((2 * m.hp * L) / 100) + L + 10,
+    atk: f(m.attack), def: f(m.defense),
+    spa: f(m.spAttack), spd: f(m.spDefense), spe: f(m.speed)
+  };
+}
+
+function makeBattler(m, level) {
+  const b = { ...m, level, xp: 0, moves: [] };
+  Object.assign(b, calcStats(m, level));
+  b.curHp = b.maxHp;
+  return b;
+}
+
+// Each Pokémon attacks with whichever of its own types hits hardest (always STAB).
+function attackRoll(att, def) {
+  let type = att.types[0], eff = -1;
+  for (const t of att.types) {
+    const e = effectiveness(t, def.types);
+    if (e > eff) { eff = e; type = t; }
+  }
+  const phys = att.atk >= att.spa;
+  const A = phys ? att.atk : att.spa;
+  const D = phys ? def.def : def.spd;
+  const base = Math.floor(Math.floor(((2 * att.level) / 5 + 2) * 60 * A / D) / 50) + 2;
+  const crit = Math.random() < 1 / 16;
+  const dmg = eff === 0 ? 0 :
+    Math.max(1, Math.floor(base * 1.5 * eff * (crit ? 1.5 : 1) * (0.85 + Math.random() * 0.15)));
+  return { dmg, type, eff, crit };
+}
+
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// ---------- Moves ----------
+const SPECIAL_TYPES = ["fire", "water", "grass", "electric", "psychic", "ice", "dragon", "dark", "fairy"];
+const SIGNATURE = {
+  normal: "Tackle", fire: "Ember", water: "Water Gun", electric: "Thunder Shock", grass: "Vine Whip",
+  ice: "Powder Snow", fighting: "Karate Chop", poison: "Acid", ground: "Mud Shot", flying: "Peck",
+  psychic: "Confusion", bug: "Leech Life", rock: "Rock Throw", ghost: "Lick", dragon: "Twister",
+  dark: "Bite", steel: "Metal Claw", fairy: "Fairy Wind"
+};
+// A basic move of the Pokémon's own type, so nobody is stuck with no attack that fits it.
+function signatureMove(type) {
+  const label = SIGNATURE[type] || "Tackle";
+  return { name: label.toLowerCase().replace(/ /g, "-"), label, type, power: 40, accuracy: 100,
+    pp: 25, curPp: 25, cls: SPECIAL_TYPES.includes(type) ? "special" : "physical" };
+}
+
+// Gives a Pokémon the last 4 attacking moves it has learned at its level.
+// Returns the labels of any newly learned moves.
+async function refreshMoves(m) {
+  const had = new Set((m.moves || []).map(x => x.name));
+  const learnable = [];
+  for (const e of (m.learnset || [])) {
+    if (e.level > m.level) continue;
+    const i = learnable.indexOf(e.name);
+    if (i >= 0) learnable.splice(i, 1);
+    learnable.push(e.name);
+  }
+  const details = (await Promise.all(learnable.slice(-12).map(n => getMove(n))))
+    .filter(x => x && !MOVE_BLACKLIST.includes(x.name));
+  const attacks = details.filter(x => x.power);
+  const statusMoves = details.filter(x => !x.power && x.ailment).slice(-1);
+  let set = attacks.slice(-(4 - statusMoves.length)).concat(statusMoves).map(x => ({ ...x, curPp: x.pp }));
+  if (!set.some(x => x.power && m.types.includes(x.type))) {
+    set = set.filter(x => !x.power).concat(set.filter(x => x.power).slice(-2)).concat(signatureMove(m.types[0]));
+  }
+  for (const mv of set) {
+    const old = (m.moves || []).find(x => x.name === mv.name);
+    if (old) mv.curPp = Math.min(old.curPp == null ? mv.pp : old.curPp, mv.pp);
+  }
+  m.moves = set;
+  return had.size ? set.filter(x => !had.has(x.name)).map(x => x.label) : [];
+}
+const restorePP = m => (m.moves || []).forEach(x => { x.curPp = x.pp; });
+const restoreAll = m => { m.status = null; m.sleep = 0; restorePP(m); };
+
+// ---------- Status effects ----------
+const STATUS_TEXT = {
+  poison: "was poisoned!", burn: "was burned!", sleep: "fell asleep!",
+  paralysis: "is paralyzed! It may be unable to move.", freeze: "was frozen solid!"
+};
+const STATUS_VALUE = { sleep: 70, paralysis: 45, poison: 40, burn: 40, freeze: 50 };
+const effSpeed = m => m.spe * (m.status === "paralysis" ? 0.5 : 1);
+
+function immuneToStatus(def, ailment) {
+  const t = def.types;
+  return (ailment === "burn" && t.includes("fire")) || (ailment === "freeze" && t.includes("ice"))
+    || (ailment === "poison" && (t.includes("poison") || t.includes("steel")))
+    || (ailment === "paralysis" && t.includes("electric"));
+}
+// Thunder Wave style moves can't hit Ground types.
+const statusBlocked = (mv, def) =>
+  !mv.ailment || immuneToStatus(def, mv.ailment) || (mv.type === "electric" && effectiveness("electric", def.types) === 0);
+
+// Auto-battle picks whichever move it expects to do the most good.
+function pickMove(att, def, pp, hpFrac = 1) {
+  let best = -1, bestScore = -1;
+  att.moves.forEach((mv, i) => {
+    if (pp[i] <= 0) return;
+    let score;
+    if (!mv.power) {
+      if (def.status || statusBlocked(mv, def)) return;
+      score = STATUS_VALUE[mv.ailment] * (mv.accuracy / 100) * (hpFrac < 0.3 ? 0.3 : 1);
+    } else {
+      const phys = mv.cls === "physical";
+      const ratio = (phys ? att.atk : att.spa) / (phys ? def.def : def.spd);
+      score = mv.power * (mv.accuracy / 100) * effectiveness(mv.type, def.types)
+        * (att.types.includes(mv.type) ? 1.5 : 1) * ratio;
+    }
+    if (score > bestScore) { bestScore = score; best = i; }
+  });
+  return best;
+}
+
+function attackRoll(att, def, pp, forced = null, hpFrac = 1) {
+  if (!att.moves || !att.moves.length) att.moves = [signatureMove(att.types[0])];
+  const i = (forced != null && pp[forced] > 0) ? forced : pickMove(att, def, pp, hpFrac);
+  const mv = i >= 0 ? att.moves[i]
+    : { label: "Struggle", type: "normal", power: 50, accuracy: 100, cls: "physical" };
+  if (i >= 0) pp[i]--;
+  const statusMove = !mv.power;
+  if (Math.random() * 100 >= mv.accuracy) return { dmg: 0, mv, eff: 1, crit: false, miss: true, statusMove };
+  if (statusMove) return { dmg: 0, mv, eff: 1, crit: false, miss: false, statusMove,
+    failed: !!def.status || statusBlocked(mv, def) };
+  const eff = effectiveness(mv.type, def.types);
+  const phys = mv.cls === "physical";
+  const A = (phys ? att.atk : att.spa) * (phys && att.status === "burn" ? 0.5 : 1);
+  const D = phys ? def.def : def.spd;
+  const base = Math.floor(Math.floor(((2 * att.level) / 5 + 2) * mv.power * A / D) / 50) + 2;
+  const stab = att.types.includes(mv.type) ? 1.5 : 1;
+  const crit = Math.random() < 1 / 16;
+  const dmg = eff === 0 ? 0 :
+    Math.max(1, Math.floor(base * stab * eff * (crit ? 1.5 : 1) * (0.85 + Math.random() * 0.15)));
+  return { dmg, mv, eff, crit, miss: false, statusMove: false };
+}
+
+// One fight, played round by round. Auto mode and manual mode both use this.
+// weaken = true stops once the wild Pokémon is low (never knocks it out), so it can be caught.
+function newBattleCtx(player, enemy, weaken = false, boost = 1) {
+  for (const m of [player, enemy]) if (!m.moves || !m.moves.length) m.moves = [signatureMove(m.types[0])];
+  return {
+    mons: { p: player, e: enemy },
+    hp: { p: player.curHp, e: enemy.curHp },
+    pp: {
+      p: player.moves.map(x => (x.curPp == null ? x.pp : x.curPp)),
+      e: enemy.moves.map(x => (x.curPp == null ? x.pp : x.curPp))
+    },
+    weaken, boost, log: [], over: false, rounds: 0
+  };
+}
+
+// Plays one round. playerMove is a move index, or null to let the auto-battler choose.
+// Returns just the new log entries from this round.
+// itemFn, if given, replaces the player's attack this round (using an item costs your turn).
+function playRound(ctx, playerMove = null, itemFn = null) {
+  const start = ctx.log.length;
+  const { mons, hp } = ctx;
+  // fx tells the screen who attacked (a), who got hit (h), or who fainted (f), for animations.
+  const say = (text, fx = null) => ctx.log.push({ text, hp: { ...hp }, st: { p: mons.p.status, e: mons.e.status }, fx });
+  const faintCheck = k => { if (hp[k] <= 0) { mons[k].status = null; say(`${cap(mons[k].name)} fainted!`, { f: k }); } };
+  const sp = effSpeed(mons.p), se = effSpeed(mons.e);
+  const order = (sp > se || (sp === se && Math.random() < 0.5)) ? ["p", "e"] : ["e", "p"];
+
+  for (const s of order) {
+    const o = s === "p" ? "e" : "p";
+    const me = mons[s], foe = mons[o];
+    if (hp.p <= 0 || hp.e <= 0) break;
+    if (s === "p" && itemFn) { itemFn(ctx, say); continue; }
+
+    // Status can stop a Pokémon from moving.
+    if (me.status === "sleep") {
+      me.sleep = (me.sleep || 1) - 1;
+      if (me.sleep > 0) say(`${cap(me.name)} is fast asleep.`);
+      else { me.status = null; say(`${cap(me.name)} woke up!`); }
+      continue;
+    }
+    if (me.status === "freeze") {
+      if (Math.random() < 0.2) { me.status = null; say(`${cap(me.name)} thawed out!`); }
+      else say(`${cap(me.name)} is frozen solid!`);
+      continue;
+    }
+    if (me.status === "paralysis" && Math.random() < 0.25) { say(`${cap(me.name)} is fully paralyzed!`); continue; }
+
+    const r = attackRoll(me, foe, ctx.pp[s], s === "p" ? playerMove : null, hp[o] / foe.maxHp);
+    if (s === "p" && r.dmg) r.dmg = Math.max(1, Math.round(r.dmg * ctx.boost));
+    hp[o] = Math.max(ctx.weaken && o === "e" ? 1 : 0, hp[o] - r.dmg);
+    let text = `${cap(me.name)} used ${r.mv.label}!`;
+    if (r.miss) text += " But it missed!";
+    else if (r.statusMove) { if (r.failed) text += " But it failed!"; }
+    else if (r.eff === 0) text += " It had no effect.";
+    else if (r.eff > 1) text += " It's super effective!";
+    else if (r.eff < 1) text += " It's not very effective.";
+    if (r.crit && r.dmg) text += " A critical hit!";
+    say(text, { a: s, h: !r.miss && !r.statusMove && r.dmg > 0 ? o : null });
+    faintCheck(o);
+
+    // Moves can leave a status behind.
+    const a = r.mv.ailment;
+    if (a && !r.miss && hp[o] > 0 && !foe.status && !immuneToStatus(foe, a) && !r.failed
+        && (r.statusMove || r.dmg > 0) && Math.random() * 100 < r.mv.ailmentChance) {
+      foe.status = a;
+      if (a === "sleep") foe.sleep = 1 + Math.floor(Math.random() * 3);
+      say(`${cap(foe.name)} ${STATUS_TEXT[a]}`);
+    }
+    if (ctx.weaken && hp.e <= mons.e.maxHp * 0.3) { ctx.over = true; break; }
+  }
+
+  // Poison and burn hurt at the end of the round.
+  for (const k of ["p", "e"]) {
+    const m = mons[k];
+    if (hp[k] <= 0 || (m.status !== "poison" && m.status !== "burn")) continue;
+    hp[k] = Math.max(ctx.weaken && k === "e" ? 1 : 0, hp[k] - Math.max(1, Math.floor(m.maxHp / 8)));
+    say(`${cap(m.name)} is hurt by its ${m.status === "poison" ? "poison" : "burn"}!`);
+    faintCheck(k);
+  }
+  if (ctx.weaken && hp.e <= mons.e.maxHp * 0.3) ctx.over = true;
+  if (hp.p <= 0 || hp.e <= 0 || ++ctx.rounds >= 80) ctx.over = true;
+  return ctx.log.slice(start);
+}
+
+// Plays a whole fight automatically (used by the tests and by auto mode).
+function simulate(player, enemy, weaken = false, boost = 1) {
+  const ctx = newBattleCtx(player, enemy, weaken, boost);
+  while (!ctx.over) playRound(ctx);
+  return { log: ctx.log, winner: ctx.hp.p > 0 ? "p" : "e", hp: ctx.hp, pp: ctx.pp };
+}
+
+// Returns messages about any level-ups.
+function gainXp(b, amount) {
+  const msgs = [`${cap(b.name)} gained ${amount} XP.`];
+  b.xp += amount;
+  while (b.xp >= b.level * b.level) {
+    b.xp -= b.level * b.level;
+    const oldMax = b.maxHp;
+    b.level++;
+    Object.assign(b, calcStats(b, b.level));
+    b.curHp += b.maxHp - oldMax;
+    msgs.push(`${cap(b.name)} grew to level ${b.level}!`);
+  }
+  return msgs;
+}
+
+// Catch odds: better when the target is hurt. Full HP is about 20%, almost no HP about 60%.
+function catchChance(enemy, ballMult = 1) {
+  const base = 0.6 * (3 * enemy.maxHp - 2 * enemy.curHp) / (3 * enemy.maxHp);
+  const bonus = { sleep: 2, freeze: 2, paralysis: 1.5, poison: 1.5, burn: 1.5 }[enemy.status] || 1;
+  return Math.min(0.95, base * bonus * ballMult);
+}
+
+// Game flow: starters, routes, wild battles, catching, trainers, gyms, evolution.
+const app = document.getElementById("app");
+const freshState = () => ({ party: [], box: [], badges: [], difficulty: 0, manual: false, money: 500, items: { potion: 3 }, dex: {}, starterName: null, progress: {}, caughtRoutes: {}, balls: 5, routeIndex: 0, nodeIndex: 0, message: "" });
+let state = freshState();
+
+// ---------- Saving ----------
+const SAVE_KEY = "kq:save";
+function saveGame() {
+  try {
+    const { party, box, badges, difficulty, manual, money, items, dex, starterName, progress, caughtRoutes, balls, routeIndex, nodeIndex } = state;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, party, box, badges, difficulty, manual, money, items, dex, starterName, progress, caughtRoutes, balls, routeIndex, nodeIndex }));
+  } catch (e) { /* storage unavailable: the game still works, it just won't save */ }
+}
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && s.v === 1 && Array.isArray(s.party) && s.party.length && ROUTES[s.routeIndex]) return s;
+  } catch (e) {}
+  return null;
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
+// Hard and Expert raise the level of every wild Pokémon, trainer, and gym leader.
+const DIFFICULTIES = [["Normal", 0], ["Hard", 4], ["Expert", 8]];
+const levelBonus = () => DIFFICULTIES[state.difficulty || 0][1];
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const typeBadge = t => `<span class="type t-${t}">${cap(t)}</span>`;
+const typesText = m => m.types.map(typeBadge).join(" ");
+const lead = () => state.party.find(m => m.curHp > 0);
+const caughtHere = () => !!state.caughtRoutes[ROUTES[state.routeIndex].id];
+const routeFinished = i => (state.progress[ROUTES[i].id] || 0) >= ROUTES[i].nodes.length;
+const routeUnlocked = i => i === 0 || routeFinished(i - 1);
+const boost = () => 1 + 0.1 * state.badges.length;
+
+function hpBar(cur, max) {
+  const pct = Math.max(0, Math.round((cur / max) * 100));
+  const color = pct > 50 ? "#4a7c2a" : pct > 20 ? "#c9a227" : "#c2412d";
+  return `<div class="bar" role="img" aria-label="HP ${cur} of ${max}"><div style="width:${pct}%;background:${color}"></div></div>`;
+}
+const STATUS_TAGS = { poison: "PSN", burn: "BRN", paralysis: "PAR", sleep: "SLP", freeze: "FRZ" };
+const stTag = s => (s ? `<span class="st st-${s}">${STATUS_TAGS[s]}</span>` : "");
+
+function monCard(m) {
+  return `<div class="mon ${m.curHp <= 0 ? "fainted" : ""}"><img src="${m.sprite}" alt="${cap(m.name)}">
+    <div>${cap(m.name)} Lv${m.level} ${stTag(m.status)}</div>${hpBar(m.curHp, m.maxHp)}<div>${m.curHp}/${m.maxHp}</div></div>`;
+}
+// ---------- Pokédex ----------
+function dexSee(p) {
+  if (!state.dex[p.name]) state.dex[p.name] = { id: p.id, name: p.name, types: p.types, sprite: p.sprite, caught: false };
+}
+function dexCatch(p) { dexSee(p); state.dex[p.name].caught = true; }
+
+async function newBattler(name, level) {
+  const b = makeBattler(await getPokemon(name), level);
+  await refreshMoves(b);
+  dexSee(b);
+  return b;
+}
+// "$rival" in a team means: whichever starter beats yours, evolved to match the level.
+function rivalSpecies(level) {
+  let n = RIVAL_STARTER[state.starterName] || "charmander";
+  while (EVOLUTIONS[n] && level >= EVOLUTIONS[n][0]) n = EVOLUTIONS[n][1];
+  return n;
+}
+// A fuller party card: sprite, types, HP, and XP, with a stripe in the Pokémon's main type color.
+function partyCard(m) {
+  const xp = Math.min(100, Math.round((100 * (m.xp || 0)) / (m.level * m.level)));
+  return `<div class="pcard bt-${m.types[0]} ${m.curHp <= 0 ? "fainted" : ""}">
+    <img src="${m.sprite}" alt="${cap(m.name)}">
+    <div class="pname">${cap(m.name)} <small>Lv${m.level}</small> ${stTag(m.status)}</div>
+    <div>${typesText(m)}</div>
+    ${hpBar(m.curHp, m.maxHp)}<small>${m.curHp}/${m.maxHp} HP</small>
+    <div class="xpbar" title="XP"><div style="width:${xp}%"></div></div>
+  </div>`;
+}
+
+// The route as a winding path: rows of 4 stops that snake back and forth, joined by a line.
+function mapHtml(route) {
+  const PER = 4;
+  const rows = [];
+  for (let r = 0; r * PER < route.nodes.length; r++) {
+    const slice = route.nodes.slice(r * PER, r * PER + PER);
+    const more = (r + 1) * PER < route.nodes.length;
+    const nodes = slice.map((n, k) => {
+      const i = r * PER + k;
+      const done = i < state.nodeIndex, current = i === state.nodeIndex;
+      const short = n.label.replace(/^(Trainer|Gym): /, "");
+      const lead0 = state.party.find(p => p.curHp > 0) || state.party[0];
+      return `<button class="mapnode n-${n.type} ${done ? "done" : current ? "current" : "locked"}" data-i="${i}"
+        title="${n.label}" ${current ? "" : "disabled"}>
+        ${current && lead0 ? `<img class="marker" src="${lead0.sprite}" alt="">` : ""}
+        <span class="icon">${NODE_ICONS[n.type]}</span><span class="lbl">${short}</span></button>`;
+    }).join("");
+    rows.push(`<div class="maprow ${r % 2 ? "rev" : ""} ${more ? "more" : ""}" style="--n:${slice.length}">${nodes}</div>`);
+  }
+  return `<div class="map">${rows.join("")}</div>`;
+}
+
+// The battle picture: foe top right, your Pokémon bottom left, an info box for each.
+function sceneHtml(me, foe) {
+  const t = state.terrain || "grass";
+  const youImg = me.aBack || me.back || me.sprite;
+  const noBack = !(me.aBack || me.back);
+  const xpPct = Math.min(100, Math.round((100 * (me.xp || 0)) / (me.level * me.level)));
+  return `<div class="scene ${t}">
+    <div class="plat foe-plat"></div><div class="plat you-plat"></div>
+    <img id="spr-e" class="spr foe" src="${foe.aFront || foe.sprite}" alt="${cap(foe.name)}">
+    <img id="spr-p" class="spr you ${noBack ? "noback" : ""}" src="${youImg}" alt="${cap(me.name)}">
+    <div class="infobox foe-box"><div>${cap(foe.name)} Lv${foe.level} <span id="st-bar-e">${stTag(foe.status)}</span></div>
+      <div>${typesText(foe)}</div>
+      <div id="bar-e">${hpBar(foe.curHp, foe.maxHp)}<small>${foe.curHp}/${foe.maxHp}</small></div></div>
+    <div class="infobox you-box"><div>${cap(me.name)} Lv${me.level} <span id="st-bar-p">${stTag(me.status)}</span></div>
+      <div>${typesText(me)}</div>
+      <div id="bar-p">${hpBar(me.curHp, me.maxHp)}<small>${me.curHp}/${me.maxHp}</small></div>
+      <div class="xpbar" title="XP"><div style="width:${xpPct}%"></div></div></div>
+  </div>`;
+}
+
+// Small attack, hit, and faint animations. Skipped if the player prefers reduced motion.
+function fxPlay(entry) {
+  if (!entry.fx || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const el = k => document.getElementById("spr-" + k);
+  const { a, h, f } = entry.fx;
+  if (a && el(a)) {
+    const dir = a === "p" ? 1 : -1;
+    el(a).animate([{ transform: "translateX(0)" }, { transform: `translateX(${dir * 28}px)` }, { transform: "translateX(0)" }], { duration: 260 });
+  }
+  if (h && el(h)) setTimeout(() => el(h) && el(h).animate([{ opacity: 1 }, { opacity: .2 }, { opacity: 1 }, { opacity: .3 }, { opacity: 1 }], { duration: 380 }), 180);
+  if (f && el(f)) el(f).animate([{ opacity: 1, transform: "translateY(0)" }, { opacity: 0, transform: "translateY(30px)" }], { duration: 500, fill: "forwards" });
+}
+
+const makeFoes = team => Promise.all(team.map(([n, l]) => newBattler(n === "$rival" ? rivalSpecies(l + levelBonus()) : n, l + levelBonus())));
+
+// ---------- XP and evolution ----------
+async function evolveIfReady(m) {
+  let msg = "";
+  for (let i = 0; i < 2; i++) {
+    const e = EVOLUTIONS[m.name];
+    if (!e || m.level < e[0]) break;
+    try {
+      const base = await getPokemon(e[1]);
+      const old = m.name, oldMax = m.maxHp;
+      Object.assign(m, base, calcStats(base, m.level));
+      m.curHp = Math.min(m.maxHp, m.curHp + (m.maxHp - oldMax));
+      dexCatch(m);
+      msg += ` ${cap(old)} evolved into ${cap(m.name)}!`;
+    } catch (err) { break; }
+  }
+  return msg;
+}
+// The Pokémon that fought gets full XP; the rest of the healthy party gets half.
+async function rewardXp(me, foe, mult = 1) {
+  const base = Math.round(foe.level * 6 * mult);
+  const out = [];
+  for (const m of state.party) {
+    if (m.curHp <= 0) continue;
+    const msgs = gainXp(m, m === me ? base : Math.round(base / 2));
+    const extra = await evolveIfReady(m);
+    const learned = await refreshMoves(m);
+    const moveMsg = learned.length ? ` ${cap(m.name)} learned ${learned.join(" and ")}!` : "";
+    out.push((m === me ? msgs : msgs.slice(1)).join(" ") + extra + moveMsg);
+  }
+  return out.filter(Boolean).join(" ");
+}
+
+// ---------- Screens ----------
+function showGameOver(msg) {
+  clearSave();
+  app.innerHTML = `<h2>Out of Pokémon</h2><div class="panel"><p>${msg}</p>
+    <button class="primary" id="again">Start over</button></div>`;
+  document.getElementById("again").addEventListener("click", showStarters);
+}
+
+function showTitle() {
+  const s = loadSave();
+  if (!s) return showStarters();
+  const route = ROUTES[s.routeIndex];
+  const first = s.party.find(p => p.curHp > 0) || s.party[0];
+  app.innerHTML = `
+    <h1>Kanto Quest</h1>
+    <div class="panel">
+      <p>Saved run: ${route.name}, ${s.badges.length} badge${s.badges.length === 1 ? "" : "s"},
+      ${DIFFICULTIES[s.difficulty || 0][0]} difficulty, ${s.party.length} in your party, led by ${cap(first.name)} Lv${first.level}.</p>
+      <div class="row"><button class="primary" id="cont">Continue</button>
+      <button id="new">New game</button></div>
+    </div>`;
+  document.getElementById("cont").addEventListener("click", async () => {
+    state = Object.assign(freshState(), s, { message: "" });
+    if (!s.progress) {
+      for (let i = 0; i < state.routeIndex; i++) state.progress[ROUTES[i].id] = ROUTES[i].nodes.length;
+      state.progress[ROUTES[state.routeIndex].id] = state.nodeIndex;
+    }
+    if (!s.caughtRoutes && s.caught) state.caughtRoutes[ROUTES[state.routeIndex].id] = true;
+    app.innerHTML = `<p>Loading...</p>`;
+    for (const p of [...state.party, ...state.box]) dexCatch(p);
+    if (!state.starterName) {
+      const names = state.party.map(p => p.name);
+      const line = STARTER_LINES.find(l => l.some(n => names.includes(n)));
+      state.starterName = line ? line[0] : "squirtle";
+    }
+    try {
+      for (const p of [...state.party, ...state.box]) {
+        if (p.back === undefined) {
+          const info = await getPokemon(p.name);
+          p.back = info.back; p.aFront = info.aFront; p.aBack = info.aBack;
+        }
+        if (p.moves && p.moves.length && p.moves.every(x => x.ailment !== undefined)) continue;
+        p.learnset = (await getPokemon(p.name)).learnset;
+        await refreshMoves(p);
+      }
+    } catch (err) { /* battles fall back to a basic move if this fails */ }
+    showRoute();
+  });
+  const newBtn = document.getElementById("new");
+  newBtn.addEventListener("click", () => {
+    if (newBtn.dataset.sure) { clearSave(); return showStarters(); }
+    newBtn.dataset.sure = "1";
+    newBtn.textContent = "Really delete the saved run?";
+  });
+}
+
+async function showStarters() {
+  state = freshState();
+  app.innerHTML = `<h1>Kanto Quest</h1><p>Loading starters...</p>`;
+  try {
+    const mons = await Promise.all(STARTERS.map(getPokemon));
+    app.innerHTML = `
+      <h1>Kanto Quest</h1>
+      <p>Your journey from Pallet Town to the Pokémon League starts here.</p>
+      <p>Difficulty (Hard and Expert raise every enemy's level):</p>
+      <div class="row" id="diff">${DIFFICULTIES.map(([n, b], i) =>
+        `<button data-d="${i}" aria-pressed="${i === 0}">${n}${b ? ` (+${b})` : ""}</button>`).join("")}</div>
+      <p>Now choose your first partner.</p>
+      <div class="row">
+        ${mons.map(m => `
+          <button class="starter" data-name="${m.name}">
+            <img src="${m.sprite}" alt="">
+            <div><strong>${cap(m.name)}</strong></div>
+            <div>${typesText(m)}</div>
+          </button>`).join("")}
+      </div>`;
+    app.querySelectorAll("#diff button").forEach(btn => btn.addEventListener("click", () => {
+      state.difficulty = Number(btn.dataset.d);
+      app.querySelectorAll("#diff button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    }));
+    app.querySelectorAll(".starter").forEach(btn =>
+      btn.addEventListener("click", async () => {
+        app.innerHTML = `<p>Loading...</p>`;
+        const starter = makeBattler(mons.find(m => m.name === btn.dataset.name), 5);
+        await refreshMoves(starter);
+        state.party = [starter];
+        state.starterName = starter.name;
+        dexCatch(starter);
+        showRoute();
+      }));
+  } catch (err) {
+    app.innerHTML = `<h1>Kanto Quest</h1><p class="error">${err.message}. Check your connection and reload.</p>
+      <button id="retry">Try again</button>`;
+    document.getElementById("retry").addEventListener("click", showStarters);
+  }
+}
+
+function showRoute() {
+  const route = ROUTES[state.routeIndex];
+  state.progress[route.id] = Math.max(state.progress[route.id] || 0, state.nodeIndex);
+  saveGame();
+  const finished = state.nodeIndex >= route.nodes.length;
+  const next = ROUTES[state.routeIndex + 1];
+  app.innerHTML = `
+    <h2>${route.name} <small>Stop ${Math.min(state.nodeIndex + 1, route.nodes.length)} of ${route.nodes.length}</small></h2>
+    <p>${route.blurb}</p>
+    <p class="stats">${DIFFICULTIES[state.difficulty || 0][0]} &nbsp; ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Catch this route: ${caughtHere() ? "used" : "available"} &nbsp; Box: ${state.box.length} &nbsp; Badges: ${state.badges.join(", ") || "none"}</p>
+    <div class="party">${state.party.map(partyCard).join("")}</div>
+    <p class="row"><button id="manage">Manage party (${state.party.length}/6, box ${state.box.length})</button>
+    <button id="worldmap" class="primary">Map</button>
+    <button id="bag">Bag</button>
+    <button id="dex">Pokédex (${Object.keys(state.dex).length} seen)</button>
+    <button id="mode">Battles: ${state.manual ? "Manual" : "Auto"} (tap to switch)</button></p>
+    ${mapHtml(route)}
+    ${state.message ? `<div class="panel">${state.message}</div>` : ""}
+    ${finished ? `<p></p><div class="panel"><p>You're at ${route.name}. What now?</p><div class="row">
+      ${route.wild.length ? `<button id="rv-wild">Look for wild Pokémon</button>` : ""}
+      ${route.nodes.some(n => n.type === "heal") ? `<button id="rv-heal">Heal at the Pokémon Center</button>` : ""}
+      ${route.nodes.some(n => n.type === "shop") ? `<button id="rv-shop">Visit the Poké Mart</button>` : ""}
+      </div></div>` : ""}
+    ${finished ? (next
+      ? `<p></p><button class="primary" id="travel">Travel to ${next.name}</button>`
+      : `<p></p><div class="panel"><p>That's everything built so far. Routes 16 to 18, Cycling Road, and Koga in Fuchsia City come next!</p></div>`) : ""}`;
+
+  app.querySelectorAll(".mapnode:not([disabled])").forEach(btn =>
+    btn.addEventListener("click", () => playNode(Number(btn.dataset.i))));
+  document.getElementById("manage").addEventListener("click", showParty);
+  document.getElementById("worldmap").addEventListener("click", () => showWorldMap());
+  const rv = id => document.getElementById(id);
+  if (rv("rv-wild")) rv("rv-wild").addEventListener("click", revisitWild);
+  if (rv("rv-heal")) rv("rv-heal").addEventListener("click", () => {
+    state.party.forEach(p => { p.curHp = p.maxHp; restoreAll(p); });
+    state.message = `<p>Your whole party is back to full health, and their moves and status are restored.</p>`;
+    showRoute();
+  });
+  if (rv("rv-shop")) rv("rv-shop").addEventListener("click", () => showShop(route.nodes.length - 1));
+  document.getElementById("bag").addEventListener("click", () => showBag(showRoute));
+  document.getElementById("dex").addEventListener("click", () => showDex(showRoute));
+  document.getElementById("mode").addEventListener("click", () => { state.manual = !state.manual; showRoute(); });
+  const travel = document.getElementById("travel");
+  if (travel) travel.addEventListener("click", () => travelTo(state.routeIndex + 1));
+}
+
+async function playNode(i) {
+  const route = ROUTES[state.routeIndex];
+  const node = route.nodes[i];
+  state.message = "";
+  state.terrain = node.type === "gym" ? "gym" : (route.terrain || "grass");
+  app.innerHTML = `<p>Loading...</p>`;
+  try {
+    if (node.type === "wild") {
+      const [lo, hi] = route.levels || [3, 5];
+      const enemy = await newBattler(pick(route.wild), randInt(lo, hi) + levelBonus());
+      return showEncounter(enemy, i);
+    }
+    if (node.type === "shop") return showShop(i);
+    if (node.type === "gift") {
+      const g = await newBattler(node.mon, node.level);
+      dexCatch(g);
+      const full = state.party.length >= 6;
+      (full ? state.box : state.party).push(g);
+      state.message = `<p>The hiker gave you ${cap(g.name)} (Lv${g.level})! It's a Grass type, which is strong against Rock Pokémon. ${full ? "Your party was full, so it went to your box." : ""}</p>`;
+      state.nodeIndex = i + 1;
+      return showRoute();
+    }
+    if (node.type === "rival") return showRivalIntro(node, await makeFoes(node.team), i);
+    if (node.type === "trainer") return runTrainer(node, await makeFoes(node.team), i, "");
+    if (node.type === "gym") return showGymIntro(node, await makeFoes(node.team), i);
+  } catch (err) {
+    state.message = `<span class="error">${err.message}</span>`;
+    return showRoute();
+  }
+  if (node.type === "item" && node.item === "ball") {
+    state.balls += node.amount;
+    state.message = `<p>You found ${node.amount} Poké Balls! You now have ${state.balls}.</p>`;
+  } else if (node.type === "item") {
+    state.items.potion = (state.items.potion || 0) + 1;
+    state.message = `<p>You found a Potion and put it in your Bag. You have ${state.items.potion}.</p>`;
+  } else if (node.type === "heal") {
+    state.party.forEach(m => { m.curHp = m.maxHp; restoreAll(m); });
+    state.message = `<p>Your whole party is back to full health, and their moves and status are restored.</p>`;
+  } else if (node.type === "end") {
+    state.message = `<p>You arrived at: ${node.label}.</p>`;
+  }
+  state.nodeIndex = i + 1;
+  showRoute();
+}
+
+function showDex(back) {
+  const entries = Object.values(state.dex).sort((a, b) => a.id - b.id);
+  const caught = entries.filter(e => e.caught).length;
+  app.innerHTML = `
+    <h2>Pokédex</h2>
+    <p class="stats">Seen: ${entries.length} &nbsp; Caught: ${caught} &nbsp; of 151</p>
+    ${entries.length ? `<div class="dexgrid">${entries.map(e => `<div class="mon ${e.caught ? "" : "seenonly"}">
+      <img src="${e.sprite}" alt="${cap(e.name)}"><div>#${String(e.id).padStart(3, "0")}</div><div>${cap(e.name)}</div>
+      <small>${e.types.map(typeBadge).join(" ")}</small><small>${e.caught ? "Caught" : "Seen"}</small></div>`).join("")}</div>`
+      : "<p>You haven't seen any Pokémon yet.</p>"}
+    <p></p><button class="primary" id="dexback">Back</button>`;
+  document.getElementById("dexback").addEventListener("click", back);
+}
+
+// ---------- World map ----------
+function travelTo(i) {
+  state.routeIndex = i;
+  state.nodeIndex = state.progress[ROUTES[i].id] || 0;
+  state.message = "";
+  showRoute();
+}
+
+async function revisitWild() {
+  const route = ROUTES[state.routeIndex];
+  state.terrain = route.terrain || "grass";
+  app.innerHTML = `<p>Looking through the grass...</p>`;
+  try {
+    const [lo, hi] = route.levels || [3, 5];
+    const enemy = await newBattler(pick(route.wild), randInt(lo, hi) + levelBonus());
+    showEncounter(enemy, route.nodes.length - 1);
+  } catch (err) {
+    state.message = `<span class="error">${err.message}</span>`;
+    showRoute();
+  }
+}
+
+// ---- Optional real map image ----
+let mapImgSrc; // undefined = not checked yet, null = none found, otherwise the file name
+function findMapImage() {
+  if (mapImgSrc !== undefined) return Promise.resolve(mapImgSrc);
+  const tryAt = i => new Promise(resolve => {
+    if (i >= MAP_IMAGES.length) { mapImgSrc = null; return resolve(null); }
+    const im = new Image();
+    im.onload = () => { mapImgSrc = MAP_IMAGES[i]; resolve(mapImgSrc); };
+    im.onerror = () => resolve(tryAt(i + 1));
+    im.src = MAP_IMAGES[i];
+  });
+  return tryAt(0);
+}
+function mapPins() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("kq:mappos")) || {}; } catch (e) {}
+  return Object.assign({}, MAP_IMG_POS, saved);
+}
+const pinsComplete = pins => ROUTES.every(r => pins[r.id]);
+
+function showImageMap(src, note = "") {
+  const pins = mapPins();
+  if (!pinsComplete(pins)) return startCalibration(src, 0, {});
+  const here = ROUTES[state.routeIndex];
+  const pinHtml = ROUTES.map((r, i) => {
+    const p = pins[r.id];
+    const cls = i === state.routeIndex ? "current" : routeFinished(i) ? "done" : routeUnlocked(i) ? "open" : "locked";
+    const label = routeUnlocked(i) ? r.name : "???";
+    return `<button class="pin ${cls}" data-i="${i}" style="left:${p.x}%;top:${p.y}%" title="${label}" aria-label="${label}, ${cls}">
+      <span>${routeUnlocked(i) ? (cls === "done" ? "✔" : MAP_POS[r.id].icon) : "🔒"}</span><em class="pl">${label}</em></button>`;
+  }).join("");
+  app.innerHTML = `
+    <h2>Kanto</h2>
+    <p class="stats">You are at ${here.name}. Badges: ${state.badges.length}. Tap a location to travel there.</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    <div class="imgmap"><img src="${src}" alt="Map of Kanto">${pinHtml}</div>
+    <p></p><div class="row"><button class="primary" id="mapback">Back to ${here.name}</button>
+    <button id="recal">Calibrate map</button></div>`;
+  app.querySelectorAll(".pin").forEach(b => b.addEventListener("click", () => {
+    const i = Number(b.dataset.i);
+    if (!routeUnlocked(i)) return showImageMap(src, `<p>That location is locked. Finish ${ROUTES[i - 1].name} first.</p>`);
+    travelTo(i);
+  }));
+  document.getElementById("mapback").addEventListener("click", showRoute);
+  document.getElementById("recal").addEventListener("click", () => startCalibration(src, 0, {}));
+}
+
+// Tap the image once per location, in order, to tell the game where each one is.
+function startCalibration(src, i, placed) {
+  if (i >= ROUTES.length) {
+    try { localStorage.setItem("kq:mappos", JSON.stringify(placed)); } catch (e) {}
+    const lines = ROUTES.map(r => `  "${r.id}": { x: ${placed[r.id].x}, y: ${placed[r.id].y} }`).join(",
+");
+    app.innerHTML = `<h2>Map calibrated</h2>
+      <p>Saved in this browser. To keep it for everyone, replace <code>const MAP_IMG_POS = {};</code> in <code>src/data.js</code> with:</p>
+      <textarea readonly rows="10" style="width:100%">const MAP_IMG_POS = {
+${lines}
+};</textarea>
+      <p></p><button class="primary" id="done">Open the map</button>`;
+    return document.getElementById("done").addEventListener("click", () => showWorldMap());
+  }
+  const dots = Object.values(placed).map(p => `<i class="cdot" style="left:${p.x}%;top:${p.y}%"></i>`).join("");
+  app.innerHTML = `
+    <h2>Calibrate map (${i + 1} of ${ROUTES.length})</h2>
+    <p>Tap the spot on the map for <strong>${ROUTES[i].name}</strong>.</p>
+    <div class="imgmap calib" id="calib"><img src="${src}" alt="Map of Kanto">${dots}</div>
+    <p></p><div class="row"><button id="undo" ${i ? "" : "disabled"}>Undo last</button><button id="cancel">Cancel</button></div>`;
+  document.getElementById("calib").addEventListener("click", ev => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    const x = Math.round(((ev.clientX - r.left) / r.width) * 1000) / 10;
+    const y = Math.round(((ev.clientY - r.top) / r.height) * 1000) / 10;
+    placed[ROUTES[i].id] = { x, y };
+    startCalibration(src, i + 1, placed);
+  });
+  document.getElementById("undo").addEventListener("click", () => { delete placed[ROUTES[i - 1].id]; startCalibration(src, i - 1, placed); });
+  document.getElementById("cancel").addEventListener("click", () => showWorldMap());
+}
+
+async function showWorldMap(note = "") {
+  const img = await findMapImage();
+  if (img) return showImageMap(img, note);
+  const idx = id => ROUTES.findIndex(r => r.id === id);
+  const edges = MAP_EDGES.map(([a, b]) => {
+    const A = MAP_POS[a], B = MAP_POS[b];
+    const open = routeUnlocked(idx(a)) && routeUnlocked(idx(b));
+    return `<line class="edge ${open ? "open" : ""}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+  }).join("");
+  const places = ROUTES.map((r, i) => {
+    const p = MAP_POS[r.id];
+    const cls = i === state.routeIndex ? "current" : routeFinished(i) ? "done" : routeUnlocked(i) ? "open" : "locked";
+    const label = routeUnlocked(i) ? r.name : "???";
+    return `<g class="loc ${cls}" data-i="${i}" role="button" tabindex="0" aria-label="${label}, ${cls}">
+      <circle cx="${p.x}" cy="${p.y}" r="22"/>
+      <text class="ico" x="${p.x}" y="${p.y}">${routeUnlocked(i) ? p.icon : "🔒"}</text>
+      ${cls === "done" ? `<text class="chk" x="${p.x + 17}" y="${p.y - 15}">✔</text>` : ""}
+      <text class="lbl" x="${p.x}" y="${p.y + 40}">${label}</text></g>`;
+  }).join("");
+  const here = ROUTES[state.routeIndex];
+  const unlocked = ROUTES.map((r, i) => i).filter(routeUnlocked);
+  app.innerHTML = `
+    <h2>Kanto</h2>
+    <p class="stats">You are at ${here.name}. Badges: ${state.badges.length}. Tap a location to travel there.</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    <svg class="worldmap" viewBox="0 0 640 520" role="group" aria-label="Map of Kanto">
+      <rect width="640" height="520" class="sea"/>
+      <path class="land" d="M70 70 L330 42 L560 48 L612 200 L596 340 L530 438 L330 478 L190 505 L84 484 L48 300 Z"/>
+      <text class="ico" x="130" y="472" style="font-size:20px">🏠</text>
+      <text class="lbl" x="130" y="500">Pallet Town</text>
+      ${edges}${places}
+    </svg>
+    <details><summary>Location list</summary><div class="row" style="margin-top:8px">
+      ${unlocked.map(i => `<button data-go="${i}" ${i === state.routeIndex ? "disabled" : ""}>${ROUTES[i].name}${routeFinished(i) ? " ✔" : ""}</button>`).join("")}
+    </div></details>
+    <p></p><button class="primary" id="mapback">Back to ${here.name}</button>`;
+  const go = i => {
+    if (!routeUnlocked(i)) return showWorldMap(`<p>That location is locked. Finish ${ROUTES[i - 1].name} first.</p>`);
+    travelTo(i);
+  };
+  app.querySelectorAll(".loc").forEach(g => {
+    g.addEventListener("click", () => go(Number(g.dataset.i)));
+    g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(Number(g.dataset.i)); } });
+  });
+  app.querySelectorAll("button[data-go]").forEach(b => b.addEventListener("click", () => go(Number(b.dataset.go))));
+  document.getElementById("mapback").addEventListener("click", showRoute);
+}
+
+// ---------- Bag and shop ----------
+const bagItems = () => Object.entries(state.items).filter(([k, n]) => n > 0 && ITEMS[k] && !ITEMS[k].ball);
+const curesStatus = (it, status) => status && it.cure && (it.cure === "all" || it.cure.includes(status));
+
+function itemUsable(key, mon) {
+  const it = ITEMS[key];
+  if (it.revive) return mon.curHp <= 0;
+  if (mon.curHp <= 0) return false;
+  return (it.heal && mon.curHp < mon.maxHp) || curesStatus(it, mon.status);
+}
+function useItem(key, mon) {
+  const it = ITEMS[key];
+  state.items[key]--;
+  if (it.revive) {
+    mon.curHp = Math.max(1, Math.floor(mon.maxHp * it.revive));
+    mon.status = null;
+    return `${cap(mon.name)} was revived!`;
+  }
+  const parts = [];
+  if (it.heal && mon.curHp < mon.maxHp) {
+    const h = Math.min(it.heal, mon.maxHp - mon.curHp);
+    mon.curHp += h;
+    parts.push(`restored ${h} HP`);
+  }
+  if (curesStatus(it, mon.status)) { parts.push(`was cured of ${mon.status}`); mon.status = null; }
+  return `${cap(mon.name)} ${parts.join(" and ")}.`;
+}
+
+function showBag(back, note = "") {
+  const list = bagItems();
+  app.innerHTML = `
+    <h2>Bag</h2>
+    <p class="stats">Money: ₽${state.money} &nbsp; Poké Balls: ${state.balls} &nbsp; Great Balls: ${state.items.greatball || 0}</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    ${list.length ? list.map(([k, n]) => `<div class="bagrow"><strong>${ITEMS[k].name}</strong> x${n} <small>${ITEMS[k].desc}</small>
+      <div class="row">${state.party.map((p, i) => `<button data-k="${k}" data-i="${i}" ${itemUsable(k, p) ? "" : "disabled"}>${cap(p.name)} ${p.curHp}/${p.maxHp}${p.status ? " " + STATUS_TAGS[p.status] : ""}</button>`).join("")}</div></div>`).join("")
+      : "<p>You have no usable items.</p>"}
+    <p></p><button class="primary" id="bagback">Back</button>`;
+  app.querySelectorAll("button[data-k]").forEach(btn => btn.addEventListener("click", () => {
+    const msg = useItem(btn.dataset.k, state.party[Number(btn.dataset.i)]);
+    saveGame();
+    showBag(back, msg);
+  }));
+  document.getElementById("bagback").addEventListener("click", back);
+}
+
+function showShop(nodeI, note = "") {
+  const owned = k => (k === "pokeball" ? state.balls : state.items[k] || 0);
+  app.innerHTML = `
+    <h2>Poké Mart</h2>
+    <p class="stats">Money: ₽${state.money}</p>
+    ${note ? `<div class="panel">${note}</div><p></p>` : ""}
+    ${SHOP_STOCK.map(k => `<div class="bagrow"><strong>${ITEMS[k].name}</strong> ₽${ITEMS[k].price} <small>${ITEMS[k].desc} You have ${owned(k)}.</small>
+      <div><button data-buy="${k}" ${state.money >= ITEMS[k].price ? "" : "disabled"}>Buy</button></div></div>`).join("")}
+    <p></p><button class="primary" id="leave">Leave</button>`;
+  app.querySelectorAll("button[data-buy]").forEach(btn => btn.addEventListener("click", () => {
+    const k = btn.dataset.buy;
+    state.money -= ITEMS[k].price;
+    if (k === "pokeball") state.balls++; else state.items[k] = (state.items[k] || 0) + 1;
+    saveGame();
+    showShop(nodeI, `Bought a ${ITEMS[k].name}.`);
+  }));
+  document.getElementById("leave").addEventListener("click", () => {
+    state.nodeIndex = nodeI + 1;
+    state.message = `<p>You left the Poké Mart.</p>`;
+    showRoute();
+  });
+}
+
+// ---------- Party management ----------
+function showParty() {
+  const p = state.party, b = state.box;
+  const movesLine = m => `<small class="moves">${(m.moves || []).map(x => `${x.label} ${typeBadge(x.type)} ${x.power || "status"}, PP ${x.curPp}/${x.pp}`).join("<br>")}</small>`;
+  const partyRows = p.map((m, i) => `<div class="partyrow">${partyCard(m)}${movesLine(m)}<div class="row">
+      <button data-a="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>Up</button>
+      <button data-a="down" data-i="${i}" ${i === p.length - 1 ? "disabled" : ""}>Down</button>
+      <button data-a="tobox" data-i="${i}" ${p.length <= 1 ? "disabled" : ""}>To box</button></div></div>`).join("");
+  const boxRows = b.length ? b.map((m, i) => `<div class="partyrow">${partyCard(m)}${movesLine(m)}<div class="row">
+      <button data-a="toparty" data-i="${i}" ${p.length >= 6 ? "disabled" : ""}>Add to party</button></div></div>`).join("")
+    : `<p>Your box is empty.</p>`;
+  app.innerHTML = `
+    <h2>Your party</h2>
+    <p>The first healthy Pokémon in this list fights first. You can carry up to 6.</p>
+    ${partyRows}
+    <h2>Box</h2>
+    ${boxRows}
+    <p></p><button class="primary" id="back">Back to the route</button>`;
+  app.querySelectorAll("button[data-a]").forEach(btn => btn.addEventListener("click", () => {
+    const i = Number(btn.dataset.i), a = btn.dataset.a;
+    if (a === "up") [p[i - 1], p[i]] = [p[i], p[i - 1]];
+    if (a === "down") [p[i + 1], p[i]] = [p[i], p[i + 1]];
+    if (a === "tobox") b.push(p.splice(i, 1)[0]);
+    if (a === "toparty") p.push(b.splice(i, 1)[0]);
+    saveGame();
+    showParty();
+  }));
+  document.getElementById("back").addEventListener("click", showRoute);
+}
+
+// ---------- Gym and trainers ----------
+function showRivalIntro(node, foes, nodeI) {
+  app.innerHTML = `
+    <h2>${node.name}</h2>
+    <div class="panel"><p>${node.taunt}</p></div>
+    <p></p><button class="primary" id="go">Fight!</button>`;
+  document.getElementById("go").addEventListener("click", () => runTrainer(node, foes, nodeI, ""));
+}
+
+function showGymIntro(node, foes, nodeI) {
+  app.innerHTML = `
+    <h2>${node.leader}'s Gym</h2>
+    <p>Here is ${node.leader}'s team. Win to earn the ${node.badge}. Perk: ${BADGE_PERK}</p>
+    <div class="party">${foes.map(monCard).join("")}</div>
+    <p>Your party:</p>
+    <div class="party">${state.party.map(partyCard).join("")}</div>
+    <div class="row"><button class="primary" id="go">Challenge ${node.leader}</button>
+    <button id="back">Not yet</button></div>`;
+  document.getElementById("go").addEventListener("click", () => runTrainer(node, foes, nodeI, ""));
+  document.getElementById("back").addEventListener("click", showRoute);
+}
+
+function runTrainer(node, foes, nodeI, log) {
+  const me = lead();
+  if (!me) return showGameOver(`You lost to ${node.name || node.leader}...`);
+  const foe = foes.find(f => f.curHp > 0);
+  const who = node.name || node.leader;
+  if (!foe) {
+    state.nodeIndex = nodeI + 1;
+    const prize = Math.max(...foes.map(f => f.level)) * (node.badge ? 60 : node.type === "rival" ? 40 : 15);
+    state.money += prize;
+    let msg = `<p>You defeated ${who} and won ₽${prize}!</p>`;
+    if (node.badge) {
+      state.badges.push(node.badge);
+      state.party.forEach(p => { p.curHp = p.maxHp; restoreAll(p); });
+      msg = `<p>You defeated ${who} and earned the ${node.badge} and ₽${prize}! ${BADGE_PERK} Your whole party was healed to full health.</p>`;
+    }
+    state.message = msg + (log ? `<p>${log}</p>` : "");
+    return showRoute();
+  }
+  playFight(me, foe, `${who} sends out ${cap(foe.name)}`, false, 1.5, r => {
+    const more = r.extra ? log + " " + r.extra : log;
+    if (!lead()) return showGameOver(`You lost to ${who}...`);
+    runTrainer(node, foes, nodeI, more);
+  });
+}
+
+// ---------- Wild encounters ----------
+function showEncounter(enemy, nodeI, note = "") {
+  const me = lead();
+  const chance = Math.round(catchChance(enemy) * 100);
+  const weak = enemy.curHp <= enemy.maxHp * 0.3;
+  app.innerHTML = `
+    <h2>Wild ${cap(enemy.name)} appeared!</h2>
+    ${sceneHtml(me, enemy)}
+    <div class="panel battle">
+      <p class="line">${note || "What will you do?"} ${caughtHere() ? "You already caught a Pokémon on this route." : `Catch chance: about ${chance}%.`}</p>
+      <div class="row">
+        <button class="primary" id="fight">Fight</button>
+        <button id="weaken" ${weak ? "disabled" : ""}>Weaken</button>
+        <button id="ball" ${state.balls && !caughtHere() ? "" : "disabled"}>${caughtHere() ? "Already caught one here" : `Throw Poké Ball (${state.balls})`}</button>
+        ${state.items.greatball && !caughtHere() ? `<button id="great">Throw Great Ball (${state.items.greatball})</button>` : ""}
+        <button id="bag">Bag</button>
+        <button id="run">Run</button>
+      </div>
+    </div>`;
+  const wildFight = weaken => playFight(me, enemy, `${weaken ? "Weakening" : "Fighting"} the wild ${cap(enemy.name)}`, weaken, 1, r => {
+    if (r.foeDown) {
+      state.nodeIndex = nodeI + 1;
+      state.message = `<p>You defeated the wild ${cap(enemy.name)}! ${r.extra}</p>`;
+      return showRoute();
+    }
+    if (!lead()) return showGameOver(`${cap(me.name)} fainted. You have no Pokémon left...`);
+    showEncounter(enemy, nodeI, r.meDown
+      ? `${cap(me.name)} fainted! ${cap(lead().name)} steps up.`
+      : `The wild ${cap(enemy.name)} is weak enough to catch!`);
+  });
+  document.getElementById("fight").addEventListener("click", () => wildFight(false));
+  document.getElementById("weaken").addEventListener("click", () => wildFight(true));
+  document.getElementById("ball").addEventListener("click", () => throwBall(enemy, nodeI, false));
+  const great = document.getElementById("great");
+  if (great) great.addEventListener("click", () => throwBall(enemy, nodeI, true));
+  document.getElementById("bag").addEventListener("click", () => showBag(() => showEncounter(enemy, nodeI, note)));
+  document.getElementById("run").addEventListener("click", () => {
+    state.nodeIndex = nodeI + 1;
+    state.message = `<p>You got away from the wild ${cap(enemy.name)}.</p>`;
+    showRoute();
+  });
+}
+
+function throwBall(enemy, nodeI, great = false) {
+  if (great) state.items.greatball--; else state.balls--;
+  if (Math.random() < catchChance(enemy, great ? ITEMS.greatball.ball : 1)) {
+    enemy.xp = 0;
+    enemy.status = null;
+    dexCatch(enemy);
+    state.caughtRoutes[ROUTES[state.routeIndex].id] = true;
+    let where = "added to your party";
+    if (state.party.length < 6) state.party.push(enemy);
+    else { state.box.push(enemy); where = "sent to your box (party is full)"; }
+    state.nodeIndex = nodeI + 1;
+    state.message = `<p>Gotcha! ${cap(enemy.name)} was caught and ${where}.</p>`;
+    return showRoute();
+  }
+  showEncounter(enemy, nodeI, "Oh no, it broke free!");
+}
+
+// ---------- Fight playback (used by wild, trainer, and gym battles) ----------
+function playFight(me, foe, title, weaken, xpMult, onDone) {
+  const ctx = newBattleCtx(me, foe, weaken, boost());
+  let timer = null;
+  app.innerHTML = `
+    <h2>${title}</h2>
+    ${sceneHtml(me, foe)}
+    <div class="panel battle">
+      <p id="line" class="line">Battle start!</p>
+      <div id="actions" class="row"></div>
+    </div>`;
+  const barE = document.getElementById("bar-e"), barP = document.getElementById("bar-p");
+  const line = document.getElementById("line"), actions = document.getElementById("actions");
+  const draw = (hp, st) => {
+    if (st) {
+      document.getElementById("st-bar-e").innerHTML = stTag(st.e);
+      document.getElementById("st-bar-p").innerHTML = stTag(st.p);
+    }
+    barE.innerHTML = hpBar(hp.e, foe.maxHp) + `<small>${hp.e}/${foe.maxHp}</small>`;
+    barP.innerHTML = hpBar(hp.p, me.maxHp) + `<small>${hp.p}/${me.maxHp}</small>`;
+  };
+  draw({ p: me.curHp, e: foe.curHp });
+
+  const finish = () => {
+    clearTimeout(timer);
+    me.curHp = ctx.hp.p;
+    foe.curHp = ctx.hp.e;
+    // Your Pokémon shake off sleep and ice after the fight; poison, burn and paralysis last until you heal.
+    if (me.status === "sleep" || me.status === "freeze") me.status = null;
+    if (me.curHp <= 0) me.status = null;
+    if (foe.curHp <= 0) foe.status = null;
+    draw(ctx.hp, { p: me.status, e: foe.status });
+    me.moves.forEach((mv, i) => { mv.curPp = ctx.pp.p[i]; });
+    foe.moves.forEach((mv, i) => { mv.curPp = ctx.pp.e[i]; });
+    const foeDown = foe.curHp <= 0, meDown = me.curHp <= 0;
+    line.textContent = foeDown ? `${cap(foe.name)} fainted!` : meDown ? `${cap(me.name)} fainted!` : "The fight paused.";
+    actions.innerHTML = `<button class="primary" id="go">Continue</button>`;
+    document.getElementById("go").addEventListener("click", async () => {
+      const extra = foeDown ? await rewardXp(me, foe, xpMult) : "";
+      onDone({ foeDown, meDown, extra });
+    });
+  };
+
+  // Shows log entries one at a time, then calls done.
+  const play = (entries, done) => {
+    let k = 0;
+    const next = () => {
+      if (k >= entries.length) return done();
+      line.textContent = entries[k].text;
+      draw(entries[k].hp, entries[k].st);
+      fxPlay(entries[k]);
+      k++;
+      timer = setTimeout(next, 900);
+    };
+    next();
+  };
+  const autoRest = () => {
+    const before = ctx.log.length;
+    while (!ctx.over) playRound(ctx);
+    actions.innerHTML = `<button id="skip">Skip</button>`;
+    document.getElementById("skip").addEventListener("click", finish);
+    play(ctx.log.slice(before), finish);
+  };
+
+  const showMoves = () => {
+    line.textContent = "Choose a move!";
+    const usable = me.moves.some((mv, i) => ctx.pp.p[i] > 0);
+    actions.innerHTML = me.moves.map((mv, i) => `<button class="movebtn" data-m="${i}" ${ctx.pp.p[i] > 0 ? "" : "disabled"}>
+        ${mv.label}<br><small>${typeBadge(mv.type)} ${mv.power ? "power " + mv.power : "status"}, PP ${ctx.pp.p[i]}/${mv.pp}</small></button>`).join("")
+      + (usable ? "" : `<button class="movebtn" data-m="-1">Struggle</button>`)
+      + `<button id="bagb">Bag</button><button id="auto">Auto the rest</button>`;
+    actions.querySelectorAll("[data-m]").forEach(btn => btn.addEventListener("click", () => {
+      actions.innerHTML = "";
+      const entries = playRound(ctx, Number(btn.dataset.m) >= 0 ? Number(btn.dataset.m) : null);
+      play(entries, () => (ctx.over ? finish() : showMoves()));
+    }));
+    document.getElementById("auto").addEventListener("click", autoRest);
+    document.getElementById("bagb").addEventListener("click", () => {
+      const usable = bagItems().filter(([k]) => !ITEMS[k].revive
+        && ((ITEMS[k].heal && ctx.hp.p < me.maxHp) || curesStatus(ITEMS[k], me.status)));
+      line.textContent = usable.length ? "Use which item? It costs your turn." : "Nothing in your Bag helps right now.";
+      actions.innerHTML = usable.map(([k, n]) => `<button data-item="${k}">${ITEMS[k].name} x${n}</button>`).join("")
+        + `<button id="itemback">Back</button>`;
+      document.getElementById("itemback").addEventListener("click", showMoves);
+      actions.querySelectorAll("[data-item]").forEach(btn => btn.addEventListener("click", () => {
+        const k = btn.dataset.item, it = ITEMS[k];
+        actions.innerHTML = "";
+        const entries = playRound(ctx, null, (c, say) => {
+          state.items[k]--;
+          if (it.heal) c.hp.p = Math.min(me.maxHp, c.hp.p + it.heal);
+          if (curesStatus(it, me.status)) me.status = null;
+          say(`You used a ${it.name} on ${cap(me.name)}.`);
+        });
+        play(entries, () => (ctx.over ? finish() : showMoves()));
+      }));
+    });
+  };
+
+  if (state.manual) showMoves();
+  else setTimeout(autoRest, 600);
+}
+
+showTitle();
+
+  </script>
 </body>
 </html>
