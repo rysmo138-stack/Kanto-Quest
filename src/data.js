@@ -437,4 +437,25 @@ const ITEMS = {
 };
 const SHOP_STOCK = ["pokeball", "greatball", "potion", "superpotion", "hyperpotion", "antidote", "fullheal", "revive"];
 
+// World map layout (SVG coordinates, 640 x 520). Each Pokémon location sits on the map where it is in Kanto.
+const MAP_POS = {
+  "route-1": { x: 130, y: 415, icon: "🌿" }, "route-2": { x: 130, y: 335, icon: "🌿" },
+  "viridian-forest": { x: 130, y: 255, icon: "🌲" }, "pewter-city": { x: 130, y: 170, icon: "🏙️" },
+  "route-3": { x: 205, y: 158, icon: "🌿" }, "mt-moon": { x: 268, y: 138, icon: "⛰️" },
+  "route-4": { x: 338, y: 190, icon: "🌿" }, "cerulean-city": { x: 430, y: 150, icon: "🏙️" },
+  "route-24": { x: 420, y: 66, icon: "🌉" }, "route-25": { x: 505, y: 66, icon: "🌿" },
+  "route-5-6": { x: 405, y: 240, icon: "🌿" }, "vermilion-city": { x: 400, y: 350, icon: "🏙️" },
+  "ss-anne": { x: 500, y: 415, icon: "🚢" }, "route-9-10": { x: 550, y: 160, icon: "🌿" },
+  "rock-tunnel": { x: 560, y: 245, icon: "⛰️" }, "lavender-town": { x: 570, y: 330, icon: "🗼" },
+  "route-8": { x: 485, y: 298, icon: "🌿" }, "celadon-city": { x: 310, y: 280, icon: "🏙️" }
+};
+// Which locations the trails connect (a trail shows as open once both ends are unlocked).
+const MAP_EDGES = [
+  ["route-1", "route-2"], ["route-2", "viridian-forest"], ["viridian-forest", "pewter-city"], ["pewter-city", "route-3"],
+  ["route-3", "mt-moon"], ["mt-moon", "route-4"], ["route-4", "cerulean-city"], ["cerulean-city", "route-24"],
+  ["route-24", "route-25"], ["cerulean-city", "route-5-6"], ["route-5-6", "vermilion-city"], ["vermilion-city", "ss-anne"],
+  ["cerulean-city", "route-9-10"], ["route-9-10", "rock-tunnel"], ["rock-tunnel", "lavender-town"],
+  ["lavender-town", "route-8"], ["route-8", "celadon-city"]
+];
+
 const NODE_ICONS = { rival: "🆚", shop: "🏪", wild: "🌿", trainer: "⚔️", item: "🎒", heal: "💊", gym: "🏅", gift: "🎁", end: "🏁" };
