@@ -192,3 +192,27 @@ button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .maprow.more::after, .maprow.more::after { height: 130px; }
 .mapnode .lbl { max-height: 2.5em; overflow: hidden; }
 @media (max-width: 420px) { .maprow.more::after { height: 130px; } }
+
+/* World map */
+.worldmap { width: 100%; height: auto; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); margin-bottom: 14px; display: block; }
+.worldmap .sea { fill: #8ecae6; }
+.worldmap .land { fill: #c5e1a5; stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; }
+.worldmap .edge { stroke: #8d6e63; stroke-width: 4; stroke-dasharray: 3 7; stroke-linecap: round; opacity: .55; }
+.worldmap .edge.open { stroke-dasharray: none; opacity: 1; }
+.worldmap .loc { cursor: pointer; }
+.worldmap .loc circle { fill: #ffd54f; stroke: var(--ink); stroke-width: 3; }
+.worldmap .loc.done circle { fill: #9ccc65; }
+.worldmap .loc.current circle { fill: var(--ball); }
+.worldmap .loc.locked { cursor: not-allowed; }
+.worldmap .loc.locked circle { fill: #bdbdbd; }
+.worldmap .loc:hover circle, .worldmap .loc:focus-visible circle { stroke-width: 5; }
+.worldmap .loc:focus { outline: none; }
+.worldmap text { font-family: inherit; text-anchor: middle; }
+.worldmap .ico { font-size: 22px; dominant-baseline: central; }
+.worldmap .chk { font-size: 15px; fill: var(--ink); font-weight: 700; }
+.worldmap .lbl { font-size: 15px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+@media (prefers-reduced-motion: no-preference) {
+  .worldmap .loc.current circle { animation: mappulse 1.4s ease-in-out infinite; }
+  @keyframes mappulse { 50% { stroke-width: 7; } }
+}
+details summary { cursor: pointer; margin: 6px 0; }
